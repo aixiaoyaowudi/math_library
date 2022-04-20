@@ -1,0 +1,195 @@
+\documentclass[8pt, a4paper, oneside, twocolumn]{article}
+\usepackage{amsmath, amsthm, amssymb, bm, graphicx, hyperref, mathrsfs, listings, fontspec, color, geometry}
+\geometry{left=0.5cm, right=0.5cm, top=0.5cm, bottom=0.5cm}
+\setmainfont{Times New Roman}
+
+\definecolor{background}{RGB}{39, 40, 34}
+\definecolor{string}{RGB}{230, 219, 116}
+\definecolor{comment}{RGB}{117, 113, 94}
+\definecolor{normal}{RGB}{248, 248, 242}
+\definecolor{identifier}{RGB}{166, 226, 46}
+
+\lstset{
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=4,
+	captionpos=b,
+	breaklines=true,
+	breakatwhitespace=true,
+	basicstyle=\scriptsize\fontspec{Fira Code}\color{normal}\ttfamily,
+	keywordstyle=\color{magenta}\ttfamily,
+	stringstyle=\color{string}\ttfamily,
+	commentstyle=\color{comment}\ttfamily,
+	emph={format_string, eff_ana_bf, permute, eff_ana_btr},
+	emphstyle=\color{identifier}\ttfamily,
+	backgroundcolor=\color{background}
+}
+
+\title{{\Huge{\textbf{Project Euler Math Library}}}\\convenient \& efficient}
+\author{xiaoyaowudi}
+\date{\today}
+\linespread{1.1}
+\begin{document}
+\maketitle
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\tableofcontents
+\part{Modulo Operations}
+$\mathrm{Modulus}$ refers to the global modulo number.
+\section{Mod Int}
+\subsection{montgomery\_int\_lib}
+\noindent \large \textbf{Definition} \normalsize
+\begin{lstlisting}[language=c++]
+struct montgomery_int_lib;
+\end{lstlisting}
+\noindent \large \textbf{Description} \normalsize \\
+Is used to store values needed for \href{https://en.wikipedia.org/wiki/Montgomery_modular_multiplication}{Montgomery Reduction}.\\
+\noindent \large \textbf{Members} \normalsize \\
+\textbf{P}:\\
+\indent\textbf{type}: unsigned int\\
+\indent\textbf{brief}: $\mathrm{Modulus}$\\
+\textbf{P2}:\\
+\indent\textbf{type}: unsigned int\\
+\indent\textbf{brief}: $2\times \mathrm{Modulus}$\\
+\textbf{NP}:\\
+\indent\textbf{type}: unsigned int\\
+\indent\textbf{brief}: $R^2\bmod\mathrm{Modulus}$\\
+\textbf{Pk}:\\
+\indent\textbf{type}: unsigned int\\
+\indent\textbf{brief}: $R^{-1}\bmod\mathrm{Modulus}$\\
+\textbf{redu}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: k(\textbf{type}: unsigned long long)\\
+\indent\textbf{return}: $k\cdot R^{-1}\bmod \left(2\times\mathrm{Modulus}\right)$(\textbf{type}: unsigned int)\\
+\textbf{reds}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: k(\textbf{type}: unsigned int, $k\in \left[0,2\times \mathrm{Modulus}\right)$)\\
+\indent\textbf{return}: $k\bmod \mathrm{Modulus}$(\textbf{type}: unsigned int)\\
+\textbf{redd}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: k(\textbf{type}: unsigned int, $k\in \left[0,4\times \mathrm{Modulus}\right)$)\\
+\indent\textbf{return}: $k\bmod \left(2\times\mathrm{Modulus}\right)$(\textbf{type}: unsigned int)\\
+\textbf{montgomery\_int\_lib}\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: P(\textbf{type}: unsigned int, $\mathrm{Modulus}$)\\
+\indent\textbf{breif}: constructor with given Modulus.\\
+\textbf{montgomery\_int\_lib}\\
+\indent\textbf{type}: function\\
+\indent\textbf{breif}: default constructor.\\
+\subsection{montgomery\_int}
+\noindent \large \textbf{Definition} \normalsize
+\begin{lstlisting}[language=c++]
+struct montgomery_int;
+\end{lstlisting}
+An implemention of \href{https://en.wikipedia.org/wiki/Montgomery_modular_multiplication}{Montgomery Reduction}.This struct has the same size as PV and has implemented add,minus,and multiply.Use 'mint' instead of this in the program.\\
+\textbf{operator}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{brief}: *,*=,+,+=,-,-=,=,-(negative),<<(io),>>(io).\\
+\textbf{montgomery\_int}\\
+\indent\textbf{type}: function\\
+\indent\textbf{brief}: default constructor, set val to $0$.\\
+\textbf{montgomery\_int}\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: a(\textbf{type}: const montgomery\_int \&)\\
+\indent\textbf{brief}: copy constructor.\\
+\textbf{montgomery\_int}\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: v(\textbf{type}: unsigned int)\\
+\indent\textbf{brief}: initialize with value v.\\
+\textbf{real\_val}\\
+\indent\textbf{type}: function\\
+\indent\textbf{return}: real value(\textbf{type}: unsigned int)\\
+\textbf{mlib}\\
+\indent\textbf{type}: static montgomery\_int\_lib\\
+\indent\textbf{brief}: library, is threadprivate by default if openmp is used.\\
+\subsection{montgomery\_mm256\_lib}
+\noindent \large \textbf{Definition} \normalsize
+\begin{lstlisting}[language=c++]
+struct montgomery_mm256_lib;
+\end{lstlisting}
+\noindent \large \textbf{Description} \normalsize \\
+Is used to store values needed for \_\_m256i \href{https://en.wikipedia.org/wiki/Montgomery_modular_multiplication}{Montgomery Reduction}.\\
+\noindent \large \textbf{Members} \normalsize \\
+\textbf{P}:\\
+\indent\textbf{type}: \_\_m256i $8\times 32$-bit int\\
+\indent\textbf{brief}: $\mathrm{Modulus}$\\
+\textbf{P2}:\\
+\indent\textbf{type}: \_\_m256i $8\times 32$-bit int\\
+\indent\textbf{brief}: $2\times \mathrm{Modulus}$\\
+\textbf{NP}:\\
+\indent\textbf{type}: \_\_m256i $8\times 32$-bit int\\
+\indent\textbf{brief}: $R^2\bmod\mathrm{Modulus}$\\
+\textbf{Pk}:\\
+\indent\textbf{type}: \_\_m256i $8\times 32$-bit int\\
+\indent\textbf{brief}: $R^{-1}\bmod\mathrm{Modulus}$\\
+\textbf{redu}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: k(\textbf{type}:\_\_m256i $4\times 64$-bit int)\\
+\indent\textbf{return}: $k\cdot R^{-1}\bmod \left(2\times\mathrm{Modulus}\right)$(\textbf{type}: \_\_m256i $4\times 32$-bit int)\\
+\textbf{reds}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: k(\textbf{type}: \_\_m256i $8\times 32$-bit int, $k\in \left[0,2\times \mathrm{Modulus}\right)$)\\
+\indent\textbf{return}: $k\bmod \mathrm{Modulus}$(\textbf{type}: \_\_m256i $8\times 32$-bit int)\\
+\textbf{redd}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: k(\textbf{type}: \_\_m256i $8\times 32$-bit int, $k\in \left[0,4\times \mathrm{Modulus}\right)$)\\
+\indent\textbf{return}: $k\bmod \left(2\times\mathrm{Modulus}\right)$(\textbf{type}: \_\_m256i $8\times 32$-bit int)\\
+\textbf{mul}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: $k_1$(\textbf{type}: \_\_m256i $8\times 32$-bit int, $k_1\in \left[0,2\times \mathrm{Modulus}\right)$), $k_2$(\textbf{type}: \_\_m256i $8\times 32$-bit int, $k_2\in \left[0,2\times \mathrm{Modulus}\right)$)\\
+\indent\textbf{return}: $k_1\times k_2\bmod \left(2\times\mathrm{Modulus}\right)$(\textbf{type}: \_\_m256i $8\times 32$-bit int)\\
+\textbf{add}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: $k_1$(\textbf{type}: \_\_m256i $8\times 32$-bit int, $k_1\in \left[0,2\times \mathrm{Modulus}\right)$), $k_2$(\textbf{type}: \_\_m256i $8\times 32$-bit int, $k_2\in \left[0,2\times \mathrm{Modulus}\right)$)\\
+\indent\textbf{return}: $k_1+ k_2\bmod \left(2\times\mathrm{Modulus}\right)$(\textbf{type}: \_\_m256i $8\times 32$-bit int)\\
+\textbf{sub}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: $k_1$(\textbf{type}: \_\_m256i $8\times 32$-bit int, $k_1\in \left[0,2\times \mathrm{Modulus}\right)$), $k_2$(\textbf{type}: \_\_m256i $8\times 32$-bit int, $k_2\in \left[0,2\times \mathrm{Modulus}\right)$)\\
+\indent\textbf{return}: $k_1- k_2\bmod \left(2\times\mathrm{Modulus}\right)$(\textbf{type}: \_\_m256i $8\times 32$-bit int)\\
+\textbf{montgomery\_int\_lib}\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: P(\textbf{type}: unsigned int, $\mathrm{Modulus}$)\\
+\indent\textbf{breif}: constructor with given Modulus.\\
+\textbf{montgomery\_int\_lib}\\
+\indent\textbf{type}: function\\
+\indent\textbf{breif}: default constructor.\\
+\subsection{montgomery\_mm256\_int}
+\noindent \large \textbf{Definition} \normalsize
+\begin{lstlisting}[language=c++]
+struct montgomery_mm256_int;
+\end{lstlisting}
+An implemention of \_\_m256i \href{https://en.wikipedia.org/wiki/Montgomery_modular_multiplication}{Montgomery Reduction}.This struct has the same size as PV and has implemented add,minus,and multiply.Use 'm256int' instead of this in the program.\\
+\textbf{operator}:\\
+\indent\textbf{type}: function\\
+\indent\textbf{brief}: *,*=,+,+=,-,-=,=.\\
+\textbf{montgomery\_mm256\_int}\\
+\indent\textbf{type}: function\\
+\indent\textbf{brief}: default constructor, set val to $0$.\\
+\textbf{montgomery\_mm256\_int}\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: a(\textbf{type}: montgomery\_mm256\_int \&)\\
+\indent\textbf{brief}: copy constructor.\\
+\textbf{montgomery\_mm256\_int}\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: v(\textbf{type}: \_\_m256i)\\
+\indent\textbf{brief}: initialize with value v.\\
+\textbf{real\_val}\\
+\indent\textbf{type}: function\\
+\indent\textbf{return}: real value(\textbf{type}: \_\_m256i)\\
+\textbf{mlib}\\
+\indent\textbf{type}: static montgomery\_mm256\_lib\\
+\indent\textbf{brief}: library, is threadprivate by default if openmp is used.\\
+\subsection{Others}
+\textbf{global\_mod}\\
+\indent\textbf{type}: unsigned int\\
+\indent\textbf{brief}: refers to the global Modulus in current thread, is threadprivate by default if openmp is used.\\
+\textbf{set\_mod}\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: P(\textbf{type}: unsigned int, $\mathrm{Modulus}$)\\
+\indent\textbf{breif}: set the global Modulus in the current thread to $P$.\\
+\textbf{set\_mod\_for\_all\_threads}\\
+\indent\textbf{type}: function\\
+\indent\textbf{params}: P(\textbf{type}: unsigned int, $\mathrm{Modulus}$)\\
+\indent\textbf{breif}: set the global Modulus in the all threads to $P$ if openmp is used, otherwise is equivalent to set\_mod.\\
+\end{document}
