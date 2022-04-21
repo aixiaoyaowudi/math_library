@@ -355,14 +355,79 @@ namespace math
 			return g1;
 		}
 	};
-	class fast_binomial_2_128
-	{
-	};
 	class fast_binomial_2_64
 	{
+	private:
+		#include "coefs_for_fast_binomial_2_64"
+		static constexpr __uint128_t coefs[32][32]=coefs_for_fast_binomial_2_64;
+		static constexpr ull bases[32]=coefs_for_fast_binomial_2_64_bases;
+		static ull fast_pow(ull a,ull b){ull ans=1,off=a;while(b){if(b&1) ans=ans*off;off=off*off;b>>=1;}return ans;}
+		static ull calc_bju(ull j,ull u){
+			__uint128_t cur=0,u2=__uint128_t(u)*u;
+			for(uint i=31;~i;--i) cur=cur*u2+coefs[j][i];cur*=u;
+			return fast_pow(bases[j],(cur>>64));
+		}
+	public:
+		static ull odd_factorial(ull k){
+			ull ans=1;ull k0=(k>>1);if(k&1) ++k0;
+			for(int j=0;j<32;++j) ans*=calc_bju(j,k0);
+			if((ans&2)!=((k0+1)&2)) ans=-ans;
+			return ans;
+		}
+		static ull factorial_odd(ull k){
+			ull ans=1;
+			while(k){ans*=odd_factorial(k);k>>=1;}
+			return ans;
+		}
+		static ull factorial(ull k){
+			ull cnt2=0;
+			while(k){cnt2+=(k>>1);k>>=1;}
+			if(cnt2>=64) return 0;
+			return factorial_odd(k)<<cnt2;
+		}
+		static ull binomial(ull upper,ull lower){
+			if(upper<lower) return 0;uint cnt2=__builtin_popcountll(lower)+__builtin_popcountll(upper-lower)-__builtin_popcountll(upper);
+			if(cnt2>=64) return 0;
+			ull c=fast_pow(factorial_odd(lower)*factorial_odd(upper-lower),(1ull<<63)-1)*factorial_odd(upper);
+			return c<<cnt2;
+		}
 	};
 	class fast_binomial_2_32
 	{
+	private:
+		#include "coefs_for_fast_binomial_2_32"
+		static constexpr ull coefs[16][16]=coefs_for_fast_binomial_2_32;
+		static constexpr uint bases[16]=coefs_for_fast_binomial_2_32_bases;
+		static uint fast_pow(uint a,uint b){uint ans=1,off=a;while(b){if(b&1) ans=ans*off;off=off*off;b>>=1;}return ans;}
+		static uint calc_bju(uint j,uint u){
+			ull cur=0,u2=1ull*u*u;
+			for(uint i=15;~i;--i) cur=cur*u2+coefs[j][i];cur*=u;
+			return fast_pow(bases[j],(cur>>32));
+		}
+	public:
+		static uint odd_factorial(uint k){
+			uint ans=1;uint k0=(k>>1);if(k&1) ++k0;
+			for(int j=0;j<16;++j) ans*=calc_bju(j,k0);
+			if((ans&2)!=((k0+1)&2)) ans=-ans;
+			return ans;
+		}
+		static uint factorial_odd(uint k){
+			uint ans=1;
+			while(k){ans*=odd_factorial(k);k>>=1;}
+			return ans;
+		}
+		static uint factorial(uint k){
+			uint cnt2=0;
+			while(k){cnt2+=(k>>1);k>>=1;}
+			if(cnt2>=32) return 0;
+			return factorial_odd(k)<<cnt2;
+		}
+		static uint binomial(uint upper,uint lower){
+			if(upper<lower) return 0;uint cnt2=__builtin_popcount(lower)+__builtin_popcount(upper-lower)-__builtin_popcount(upper);
+			if(cnt2>=32) return 0;
+			uint c=fast_pow(factorial_odd(lower)*factorial_odd(upper-lower),(1u<<31)-1)*factorial_odd(upper);
+			return c<<cnt2;
+		}
 	};
 }
 namespace tools
