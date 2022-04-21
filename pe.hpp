@@ -157,42 +157,43 @@ namespace math
 		#endif
 	}
 	typedef std::vector<mint> poly;
+	template<typename T,size_t align_val>
+	struct aligned_delete {
+		void operator()(T* ptr) const {
+			operator delete[](ptr,std::align_val_t(align_val));
+		}
+	};
+	template<typename T,size_t align_val>
+	using aligned_array=std::unique_ptr<T[],aligned_delete<T,align_val>>;
+	template<typename T, size_t align_val>
+	aligned_array<T,align_val> create_aligned_array(size_t size){
+		return aligned_array<T,align_val>(new(std::align_val_t(align_val)) T[size]);
+	}
 	template<uint32_t P> class polynomial;
 	template<uint32_t P,uint32_t G>
 	class polynomial_ntt
 	{
 	private:
-		mint *ws0,*ws1,*fac,*ifac,*_inv,*tt;uint fn,fb,*rev,*lgg;
-		bool alloced;
+		// mint *ws0,*ws1,*fac,*ifac,*_inv,*tt;uint fn,fb,*rev,*lgg;bool alloced;
+		aligned_array<mint,32> ws0,ws1,fac,ifac,_inv,tt;
+		aligned_array<uint,32> rev,lgg;
+		uint fn,fb;
 		void release(){
-			if(alloced){
-				operator delete[](ws0, std::align_val_t(32));
-				operator delete[](ws1, std::align_val_t(32));
-				operator delete[](fac, std::align_val_t(32));
-				operator delete[](ifac,std::align_val_t(32));
-				operator delete[](_inv,std::align_val_t(32));
-				operator delete[](tt,  std::align_val_t(32));
-				operator delete[](rev, std::align_val_t(32));
-				operator delete[](lgg, std::align_val_t(32));
-				alloced=false;
-			}
+			ws0.reset();ws1.reset();fac.reset();ifac.reset();_inv.reset();tt.reset();
+			rev.reset();lgg.reset();
 		}
 	public:
 		template<uint32_t P0>
 		friend class polynomial;
-		polynomial_ntt(){alloced=false;ws0=ws1=fac=ifac=_inv=tt=NULL;rev=lgg=NULL;fn=fb=0;}
+		polynomial_ntt(){
+			fn=fb=0;}
 		void init(uint max_conv_size){
 			release();
 			fn=1;fb=0;while(fn<(max_conv_size<<1)) fn<<=1,++fb;
-			_inv=new(std::align_val_t(32)) mint[fn+32];
-			ws0 =new(std::align_val_t(32)) mint[fn+32];
-			ws1 =new(std::align_val_t(32)) mint[fn+32];
-			fac =new(std::align_val_t(32)) mint[fn+32];
-			ifac=new(std::align_val_t(32)) mint[fn+32];
-			rev =new(std::align_val_t(32)) uint[fn+32];
-			lgg =new(std::align_val_t(32)) uint[fn+32];
-			tt  =new(std::align_val_t(32)) mint[fn+32];
-			alloced=true;
+			_inv=create_aligned_array<mint,32>(fn+32);ws0 =create_aligned_array<mint,32>(fn+32);
+			ws1 =create_aligned_array<mint,32>(fn+32);fac =create_aligned_array<mint,32>(fn+32);
+			ifac=create_aligned_array<mint,32>(fn+32);tt  =create_aligned_array<mint,32>(fn+32);
+			rev =create_aligned_array<uint,32>(fn+32);lgg =create_aligned_array<uint,32>(fn+32);
 			_inv[1]=mint(1);for(uint i=2;i<=fn;++i) _inv[i]=(-mint(P/i))*_inv[P%i];
 			ifac[0]=fac[0]=mint(1);for(uint i=1;i<=fn;++i) fac[i]=mint(i)*fac[i-1],ifac[i]=ifac[i-1]*_inv[i];
 			rev[0]=0;for(uint i=0;i<fn;++i) rev[i]=(rev[i>>1]>>1)|((i&1)<<(fb-1));
@@ -204,24 +205,20 @@ namespace math
 			}
 		}
 		polynomial_ntt(const polynomial_ntt<P,G> &d){
-			alloced=d.alloced;fn=d.fn,fb=d.fb;
-			if(alloced){
-				_inv=new(std::align_val_t(32)) mint[fn+32];
-				ws0 =new(std::align_val_t(32)) mint[fn+32];
-				ws1 =new(std::align_val_t(32)) mint[fn+32];
-				fac =new(std::align_val_t(32)) mint[fn+32];
-				ifac=new(std::align_val_t(32)) mint[fn+32];
-				rev =new(std::align_val_t(32)) uint[fn+32];
-				lgg =new(std::align_val_t(32)) uint[fn+32];
-				tt  =new(std::align_val_t(32)) mint[fn+32];
-				std::memcpy(ws0, d.ws0, sizeof(mint)*(fn+32));
-				std::memcpy(ws1, d.ws1, sizeof(mint)*(fn+32));
-				std::memcpy(fac, d.fac, sizeof(mint)*(fn+32));
-				std::memcpy(ifac,d.ifac,sizeof(mint)*(fn+32));
-				std::memcpy(_inv,d._inv,sizeof(mint)*(fn+32));
-				std::memcpy(tt,  d.tt,  sizeof(mint)*(fn+32));
-				std::memcpy(rev, d.rev, sizeof(uint)*(fn+32));
-				std::memcpy(lgg, d.lgg, sizeof(uint)*(fn+32));
+			fn=d.fn,fb=d.fb;
+			if(d.rev){
+				_inv=create_aligned_array<mint,32>(fn+32);ws0 =create_aligned_array<mint,32>(fn+32);
+				ws1 =create_aligned_array<mint,32>(fn+32);fac =create_aligned_array<mint,32>(fn+32);
+				ifac=create_aligned_array<mint,32>(fn+32);tt  =create_aligned_array<mint,32>(fn+32);
+				rev =create_aligned_array<uint,32>(fn+32);lgg =create_aligned_array<uint,32>(fn+32);
+				std::memcpy(ws0.get(), d.ws0.get(), sizeof(mint)*(fn+32));
+				std::memcpy(ws1.get(), d.ws1.get(), sizeof(mint)*(fn+32));
+				std::memcpy(fac.get(), d.fac.get(), sizeof(mint)*(fn+32));
+				std::memcpy(ifac.get(),d.ifac.get(),sizeof(mint)*(fn+32));
+				std::memcpy(_inv.get(),d._inv.get(),sizeof(mint)*(fn+32));
+				std::memcpy(tt.get(),  d.tt.get(),  sizeof(mint)*(fn+32));
+				std::memcpy(rev.get(), d.rev.get(), sizeof(uint)*(fn+32));
+				std::memcpy(lgg.get(), d.lgg.get(), sizeof(uint)*(fn+32));
 			}
 		}
 		// TODO: add avx support
@@ -229,7 +226,7 @@ namespace math
 		// #else
 		void NTT(poly &p,int V){
 			uint bts=lgg[p.size()];if(p.size()!=(1<<bts)) p.resize((1<<bts));
-			mint *w=(V==1)?ws0:ws1;uint len=(1<<bts);for(uint i=0;i<len;++i) tt[i]=p[rev[i]>>(fb-bts)];
+			mint *w=(V==1)?ws0.get():ws1.get();uint len=(1<<bts);for(uint i=0;i<len;++i) tt[i]=p[rev[i]>>(fb-bts)];
 			mint t1,t2;
 			for(uint l=2;l<=len;l<<=1)
 				for(uint j=0,mid=(l>>1);j<len;j+=l)
@@ -277,29 +274,24 @@ namespace math
 		polynomial_ntt<P2,3> pn2;
 		polynomial_ntt<P3,3> pn3;
 		FastMod F,F1,F2,F3;uint N3;
-		mint *_inv;bool alloced;
+		aligned_array<mint,32> _inv;
 	public:
 		void release(){
-			if(alloced){
-				alloced=false;
-				pn1.release();
-				pn2.release();
-				pn3.release();
-				operator delete[](_inv,std::align_val_t(32));
-			}
+			pn1.release();
+			pn2.release();
+			pn3.release();
+			_inv.reset();
 		}
 		polynomial(const polynomial<P> &d):pn1(d.pn1),pn2(d.pn2),pn3(d.pn3),F(P),F1(P1),F2(P2),F3(P3),N3(1ull*P1*P2%P){
-			alloced=d.alloced;
-			if(alloced){
-				_inv=new(std::align_val_t(32)) mint[pn1.fn+32];
-				memcpy(_inv,d._inv,sizeof(mint)*(d.pn1.fn+32));
+			if(d._inv){
+				_inv=create_aligned_array<mint,32>(d.pn1.fn+32);
+				memcpy(_inv.get(),d._inv.get(),sizeof(mint)*(d.pn1.fn+32));
 			}
 		}
-		polynomial():F(P),F1(P2),F2(P2),F3(P3),N3(1ull*P1*P2%P){alloced=false;}
+		polynomial():F(P),F1(P2),F2(P2),F3(P3),N3(1ull*P1*P2%P){}
 		~polynomial(){release();}
 		void init(uint max_conv_size){
 			release();
-			alloced=true;
 			set_mod(P1);
 			pn1.init(max_conv_size);
 			set_mod(P2);
@@ -307,7 +299,7 @@ namespace math
 			set_mod(P3);
 			pn3.init(max_conv_size);
 			set_mod(P);
-			_inv=new(std::align_val_t(32)) mint[pn1.fn+32];_inv[1]=mint(1);
+			_inv=create_aligned_array<mint,32>(pn1.fn+32);_inv[1]=mint(1);
 			for(uint i=2;i<=pn1.fn;++i) _inv[i]=(-mint(P/i))*_inv[P%i];
 		}
 		poly mul(const poly &a,const poly &b){
