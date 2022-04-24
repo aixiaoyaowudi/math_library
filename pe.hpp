@@ -205,6 +205,21 @@ namespace math
 		static uint factorial(uint k);
 		static uint binomial(uint upper,uint lower);
 	};
+	class LinearModuloPreprocessing
+	{
+	private:
+		std::unique_ptr<mint[]> fac,ifac,_inv;uint rg,P;
+		void release();
+	public:
+		LinearModuloPreprocessing();
+		LinearModuloPreprocessing(const LinearModuloPreprocessing &d);
+		~LinearModuloPreprocessing();
+		void init(uint maxn,uint P);
+		mint factorial(uint i);
+		mint inverse_factorial(uint i);
+		mint inverse(uint i);
+		mint binomial(uint upper,uint lower);
+	};
 }
 namespace tools
 {

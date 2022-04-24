@@ -265,6 +265,31 @@ namespace math
 		for(uint i=0;i<l;++i) g1[i]=a[i]-g1[i];g1[0]+=mint(1);g1=mul(g1,g0);g1.resize(l);
 		return g1;
 	}
+	LinearModuloPreprocessing::LinearModuloPreprocessing(){}
+	LinearModuloPreprocessing::~LinearModuloPreprocessing(){release();}
+	void LinearModuloPreprocessing::release(){
+		if(_inv){
+			_inv.reset();fac.reset();ifac.reset();
+		}
+	}
+	void LinearModuloPreprocessing::init(uint maxn,uint P0){
+		release();rg=maxn;P=P0;
+		fac=std::make_unique<mint[]>(rg+32);ifac=std::make_unique<mint[]>(rg+32);_inv=std::make_unique<mint[]>(rg+32);
+		_inv[0]=0,_inv[1]=fac[0]=ifac[0]=1;
+		for(uint i=2;i<rg+32;++i) _inv[i]=(-mint(P/i))*_inv[P%i];
+		for(uint i=1;i<rg+32;++i) fac[i]=fac[i-1]*mint(i),ifac[i]=ifac[i-1]*_inv[i];
+	}
+	LinearModuloPreprocessing::LinearModuloPreprocessing(const LinearModuloPreprocessing &d){
+		if(d._inv){
+			rg=d.rg;P=d.P;
+			fac=std::make_unique<mint[]>(rg+32);ifac=std::make_unique<mint[]>(rg+32);_inv=std::make_unique<mint[]>(rg+32);
+			memcpy(fac.get(),d.fac.get(),sizeof(mint)*(rg+32));memcpy(ifac.get(),d.ifac.get(),sizeof(mint)*(rg+32));memcpy(_inv.get(),d._inv.get(),sizeof(mint)*(rg+32));
+		}
+	}
+	mint LinearModuloPreprocessing::inverse(uint i){return _inv[i];}
+	mint LinearModuloPreprocessing::inverse_factorial(uint i){return ifac[i];}
+	mint LinearModuloPreprocessing::factorial(uint i){return fac[i];}
+	mint LinearModuloPreprocessing::binomial(uint upper,uint lower){if(lower>upper) return mint();return fac[upper]*ifac[lower]*ifac[upper-lower];}
 }
 namespace tools
 {

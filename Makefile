@@ -43,7 +43,7 @@ bin/libpe_with_omp_avx2.a:pe.cpp
 	$(PACK) bin/libpe_with_omp_avx2.a bin/libpe_with_omp_avx2.o
 	@rm -f bin/libpe_with_omp_avx2.o
 
-all: bin/libpe.a bin/libpe_with_omp.a bin/libpe_with_avx2.a bin/libpe_with_omp_avx2.a bin/pe.hpp bin/coefs_for_fast_binomial_2_32 bin/coefs_for_fast_binomial_2_64
+all: bin/pe.hpp bin/coefs_for_fast_binomial_2_32 bin/coefs_for_fast_binomial_2_64 bin/libpe.a bin/libpe_with_omp.a bin/libpe_with_avx2.a bin/libpe_with_omp_avx2.a
 	@echo done >/dev/null
 
 clean:
