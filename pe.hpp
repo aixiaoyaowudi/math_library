@@ -44,12 +44,17 @@ namespace math
 		ull b, m;
 		FastMod(ull b) : b(b), m(ull((L(1) << 64) / b)) {}
 		FastMod(){}
+		FastMod(FastMod &d):b(d.b),m(d.m){}
 		ull reduce(ull a) {
 			ull q = (ull)((L(m) * a) >> 64);
 			ull r = a - q * b;
 			return r >= b ? r - b : r;
 		}
 	};
+	extern FastMod global_fast_mod;
+	#ifdef _OPENMP
+	#pragma omp threadprivate(global_fast_mod)
+	#endif
 	struct montgomery_int_lib{
 		constexpr static uint calc_k(uint MOD,uint len){uint ans=1;for(int i=1;i<len;++i) ans=(ans*(MOD+1)+1);return ans;}
 		uint P,P2,NP,Pk;static const uint32_t uint_len = sizeof(uint)*8;
@@ -205,20 +210,62 @@ namespace math
 		static uint factorial(uint k);
 		static uint binomial(uint upper,uint lower);
 	};
-	class LinearModuloPreprocessing
+	class linear_modulo_preprocessing
 	{
 	private:
 		std::unique_ptr<mint[]> fac,ifac,_inv;uint rg,P;
 		void release();
 	public:
-		LinearModuloPreprocessing();
-		LinearModuloPreprocessing(const LinearModuloPreprocessing &d);
-		~LinearModuloPreprocessing();
+		linear_modulo_preprocessing();
+		linear_modulo_preprocessing(const linear_modulo_preprocessing &d);
+		~linear_modulo_preprocessing();
 		void init(uint maxn,uint P);
-		mint factorial(uint i);
-		mint inverse_factorial(uint i);
-		mint inverse(uint i);
-		mint binomial(uint upper,uint lower);
+		mint factorial(uint i) const;
+		mint inverse_factorial(uint i) const;
+		mint inverse(uint i) const;
+		mint binomial(uint upper,uint lower) const;
+	};
+	constexpr int sieve_prefix_sum_offset=16;
+	enum sieve_flag
+	{
+		sieve_mu=1<<0,
+		sieve_euler_phi=1<<1,
+		sieve_divisors=1<<2,
+		sieve_divisors_sum=(1<<3),
+		sieve_prefix_sum_mu=1<<(sieve_prefix_sum_offset+0),
+		sieve_prefix_sum_euler_phi=1<<(sieve_prefix_sum_offset+1),
+		sieve_prefix_sum_divisors=1<<(sieve_prefix_sum_offset+2),
+		sieve_prefix_sum_divisors_sum=1<<(sieve_prefix_sum_offset+3),
+	};
+	class sieve
+	{
+	private:
+		std::unique_ptr<uint[]> mnf,phi,mnfc,pksum,d,ds;uint rg,pc;
+		std::unique_ptr<int[]> _mu;
+		std::unique_ptr<ll[]> premu,preei,pred,preds;
+		std::unique_ptr<bool[]> vis;
+		std::vector<uint> ps;
+		void release();
+	public:
+		sieve();
+		~sieve();
+		sieve(const sieve &t);
+		void init(uint maxn,int flag);
+		uint prime_count() const;
+		std::vector<uint> all_primes() const;
+		uint nth_prime(uint k) const;
+		bool is_prime(uint k) const;
+		uint min_prime_factor(uint k) const;
+		std::vector<std::pair<uint,uint>> factor(uint k) const;
+		int mu(uint k) const;
+		uint euler_phi(uint k) const;
+		uint divisors(uint k) const;
+		uint divisors_sum(uint k) const;
+		ll prefix_sum_mu(uint k) const;
+		ll prefix_sum_euler_phi(uint k) const;
+		ll prefix_sum_divisors(uint k) const;
+		ll prefix_sum_divisors_sum(uint k) const;
+		uint prime_index(uint k) const;
 	};
 }
 namespace tools

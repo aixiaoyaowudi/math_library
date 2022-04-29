@@ -1,7 +1,7 @@
 COMPILER     = icpc
 CPPFLAGS     = -std=c++17 -Ofast -I./
 OPENMP_FLAGS = -fopenmp
-AVX_FLAGS    = -xavx2
+AVX_FLAGS    = -xcore-avx2
 PACK         = ar -crv
 
 default: all

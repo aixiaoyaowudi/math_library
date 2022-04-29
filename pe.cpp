@@ -15,6 +15,7 @@
 namespace math
 {
 	int global_mod=default_mod;
+	FastMod global_fast_mod=FastMod(default_mod);
 	mint fast_pow(mint a,ull b){mint ans=mint(1),off=a;while(b){if(b&1) ans*=off;off*=off;b>>=1;}return ans;}
 	montgomery_int_lib montgomery_int::mlib=montgomery_int_lib(default_mod);
 	void set_mint_mod(uint32_t p){
@@ -32,6 +33,7 @@ namespace math
 		{
 		#endif
 			global_mod=p;
+			global_fast_mod=FastMod(p);
 			set_mint_mod(p);
 			#if defined(__AVX__) && defined(__AVX2__)
 			set_m256int_mod(p);
@@ -42,6 +44,7 @@ namespace math
 	}
 	void set_mod(uint32_t p){
 		global_mod=p;
+		global_fast_mod=FastMod(p);
 		set_mint_mod(p);
 		#if defined(__AVX__) && defined(__AVX2__)
 		set_m256int_mod(p);
@@ -265,31 +268,159 @@ namespace math
 		for(uint i=0;i<l;++i) g1[i]=a[i]-g1[i];g1[0]+=mint(1);g1=mul(g1,g0);g1.resize(l);
 		return g1;
 	}
-	LinearModuloPreprocessing::LinearModuloPreprocessing(){}
-	LinearModuloPreprocessing::~LinearModuloPreprocessing(){release();}
-	void LinearModuloPreprocessing::release(){
+	linear_modulo_preprocessing::linear_modulo_preprocessing(){}
+	linear_modulo_preprocessing::~linear_modulo_preprocessing(){release();}
+	void linear_modulo_preprocessing::release(){
 		if(_inv){
 			_inv.reset();fac.reset();ifac.reset();
 		}
 	}
-	void LinearModuloPreprocessing::init(uint maxn,uint P0){
+	void linear_modulo_preprocessing::init(uint maxn,uint P0){
 		release();rg=maxn;P=P0;
 		fac=std::make_unique<mint[]>(rg+32);ifac=std::make_unique<mint[]>(rg+32);_inv=std::make_unique<mint[]>(rg+32);
 		_inv[0]=0,_inv[1]=fac[0]=ifac[0]=1;
 		for(uint i=2;i<rg+32;++i) _inv[i]=(-mint(P/i))*_inv[P%i];
 		for(uint i=1;i<rg+32;++i) fac[i]=fac[i-1]*mint(i),ifac[i]=ifac[i-1]*_inv[i];
 	}
-	LinearModuloPreprocessing::LinearModuloPreprocessing(const LinearModuloPreprocessing &d){
+	linear_modulo_preprocessing::linear_modulo_preprocessing(const linear_modulo_preprocessing &d){
 		if(d._inv){
 			rg=d.rg;P=d.P;
 			fac=std::make_unique<mint[]>(rg+32);ifac=std::make_unique<mint[]>(rg+32);_inv=std::make_unique<mint[]>(rg+32);
-			memcpy(fac.get(),d.fac.get(),sizeof(mint)*(rg+32));memcpy(ifac.get(),d.ifac.get(),sizeof(mint)*(rg+32));memcpy(_inv.get(),d._inv.get(),sizeof(mint)*(rg+32));
+			std::memcpy(fac.get(),d.fac.get(),sizeof(mint)*(rg+32));std::memcpy(ifac.get(),d.ifac.get(),sizeof(mint)*(rg+32));memcpy(_inv.get(),d._inv.get(),sizeof(mint)*(rg+32));
 		}
 	}
-	mint LinearModuloPreprocessing::inverse(uint i){return _inv[i];}
-	mint LinearModuloPreprocessing::inverse_factorial(uint i){return ifac[i];}
-	mint LinearModuloPreprocessing::factorial(uint i){return fac[i];}
-	mint LinearModuloPreprocessing::binomial(uint upper,uint lower){if(lower>upper) return mint();return fac[upper]*ifac[lower]*ifac[upper-lower];}
+	mint linear_modulo_preprocessing::inverse(uint i) const {return _inv[i];}
+	mint linear_modulo_preprocessing::inverse_factorial(uint i) const {return ifac[i];}
+	mint linear_modulo_preprocessing::factorial(uint i) const {return fac[i];}
+	mint linear_modulo_preprocessing::binomial(uint upper,uint lower) const {if(lower>upper) return mint();return fac[upper]*ifac[lower]*ifac[upper-lower];}
+	void sieve::release(){
+		mnf.reset();_mu.reset();phi.reset();mnfc.reset();pksum.reset();d.reset();ds.reset();
+		premu.reset();preei.reset();pred.reset(),preds.reset();ps.clear();
+	}
+	sieve::~sieve(){release();}
+	sieve::sieve(){}
+	void sieve::init(uint maxn,int flg){
+		flg|=(flg<<sieve_prefix_sum_offset);rg=maxn;pc=0;
+		mnf=std::make_unique<uint[]>(maxn+1);vis=std::make_unique<bool[]>(maxn+1);
+		if(flg&sieve_mu) _mu=std::make_unique<int[]>(maxn+1),_mu[0]=0,_mu[1]=1;
+		if(flg&sieve_euler_phi) phi=std::make_unique<uint[]>(maxn+1),phi[0]=0,phi[1]=1;
+		if(flg&sieve_divisors) mnfc=std::make_unique<uint[]>(maxn+1),d=std::make_unique<uint[]>(maxn+1),mnfc[0]=mnfc[1]=0,d[0]=0,d[1]=1;
+		if(flg&sieve_divisors_sum) pksum=std::make_unique<uint[]>(maxn+1),ds=std::make_unique<uint[]>(maxn+1),pksum[0]=pksum[1]=1,ds[0]=0,ds[1]=1;
+		if(flg&sieve_prefix_sum_mu) premu=std::make_unique<ll[]>(maxn+1),premu[0]=0;
+		if(flg&sieve_prefix_sum_euler_phi) preei=std::make_unique<ll[]>(maxn+1),preei[0]=0;
+		if(flg&sieve_prefix_sum_divisors) pred=std::make_unique<ll[]>(maxn+1),pred[0]=0;
+		if(flg&sieve_prefix_sum_divisors_sum) preds=std::make_unique<ll[]>(maxn+1),preds[0]=0;
+		std::memset(vis.get(),0,sizeof(bool)*(maxn+1));
+		mnf[0]=0,mnf[1]=1;
+		for(uint i=2;i<=maxn;++i){
+			if(!vis[i]){
+				ps.push_back(i);++pc;
+				mnf[i]=pc;
+				if(flg&sieve_mu) _mu[i]=-1;
+				if(flg&sieve_euler_phi) phi[i]=i-1;
+				if(flg&sieve_divisors) mnfc[i]=1,d[i]=2;
+				if(flg&sieve_divisors_sum) pksum[i]=i+1,ds[i]=i+1;
+			}
+			for(uint j=0;j<pc && 1ull*ps[j]*i<=maxn;++j){
+				uint t=ps[j]*i;vis[t]=true;mnf[t]=j+1;
+				if((i%ps[j])==0){
+					if(flg&sieve_mu) _mu[t]=0;
+					if(flg&sieve_euler_phi) phi[t]=phi[i]*ps[j];
+					if(flg&sieve_divisors) mnfc[t]=mnfc[i]+1,d[t]=d[i]/(mnfc[i]+1)*(mnfc[t]+1);
+					if(flg&sieve_divisors_sum) pksum[t]=pksum[i]*ps[j]+1,ds[t]=ds[i]/pksum[i]*pksum[t];
+					break;
+				}
+				else{
+					if(flg&sieve_mu) _mu[t]=-_mu[i];
+					if(flg&sieve_euler_phi) phi[t]=phi[i]*(ps[j]-1);
+					if(flg&sieve_divisors) mnfc[t]=1,d[t]=d[i]*2;
+					if(flg&sieve_divisors_sum) pksum[t]=ps[j]+1,ds[t]=ds[i]*(ps[j]+1);
+				}
+			}
+		}
+		if(flg>>sieve_prefix_sum_offset){
+			for(uint i=1;i<=maxn;++i){
+				if(flg&sieve_prefix_sum_mu) premu[i]=premu[i-1]+_mu[i];
+				if(flg&sieve_prefix_sum_euler_phi) preei[i]=preei[i-1]+phi[i];
+				if(flg&sieve_prefix_sum_divisors) pred[i]=pred[i-1]+d[i];
+				if(flg&sieve_prefix_sum_divisors_sum) preds[i]=preds[i-1]+ds[i];
+			}
+		}
+	}
+	uint sieve::prime_count() const {return pc;}
+	uint sieve::nth_prime(uint k) const {return ps[k-1];}
+	std::vector<uint> sieve::all_primes() const {return ps;}
+	bool sieve::is_prime(uint k) const {if(k<=1) return false;else return !vis[k];}
+	uint sieve::min_prime_factor(uint k) const {return ps[mnf[k]-1];}
+	uint sieve::prime_index(uint k) const {return mnf[k];}
+	int sieve::mu(uint k) const {return _mu[k];}
+	uint sieve::euler_phi(uint k) const {return phi[k];}
+	uint sieve::divisors(uint k) const {return d[k];}
+	uint sieve::divisors_sum(uint k) const {return ds[k];}
+	ll sieve::prefix_sum_mu(uint k) const {return premu[k];}
+	ll sieve::prefix_sum_euler_phi(uint k) const {return preei[k];}
+	ll sieve::prefix_sum_divisors(uint k) const {return pred[k];}
+	ll sieve::prefix_sum_divisors_sum(uint k) const {return preds[k];}
+	sieve::sieve(const sieve &t){
+		rg=t.rg,pc=t.pc,ps=t.ps;
+		if(t.mnf){
+			mnf=std::make_unique<uint[]>(rg+1);
+			std::memcpy(mnf.get(),t.mnf.get(),sizeof(uint)*(rg+1));
+		}
+		if(t.vis){
+			vis=std::make_unique<bool[]>(rg+1);
+			std::memcpy(vis.get(),t.vis.get(),sizeof(bool)*(rg+1));
+		}
+		if(t._mu){
+			_mu=std::make_unique<int[]>(rg+1);
+			std::memcpy(_mu.get(),t._mu.get(),sizeof(int)*(rg+1));
+		}
+		if(t.phi){
+			phi=std::make_unique<uint[]>(rg+1);
+			std::memcpy(phi.get(),t.phi.get(),sizeof(uint)*(rg+1));
+		}
+		if(t.mnfc){
+			mnfc=std::make_unique<uint[]>(rg+1);
+			std::memcpy(mnfc.get(),t.mnfc.get(),sizeof(uint)*(rg+1));
+		}
+		if(t.pksum){
+			pksum=std::make_unique<uint[]>(rg+1);
+			std::memcpy(pksum.get(),t.pksum.get(),sizeof(uint)*(rg+1));
+		}
+		if(t.d){
+			d=std::make_unique<uint[]>(rg+1);
+			std::memcpy(d.get(),t.d.get(),sizeof(uint)*(rg+1));
+		}
+		if(t.ds){
+			ds=std::make_unique<uint[]>(rg+1);
+			std::memcpy(ds.get(),t.ds.get(),sizeof(uint)*(rg+1));
+		}
+		if(t.premu){
+			premu=std::make_unique<ll[]>(rg+1);
+			std::memcpy(premu.get(),t.premu.get(),sizeof(ll)*(rg+1));
+		}
+		if(t.preei){
+			preei=std::make_unique<ll[]>(rg+1);
+			std::memcpy(preei.get(),t.preei.get(),sizeof(ll)*(rg+1));
+		}
+		if(t.pred){
+			pred=std::make_unique<ll[]>(rg+1);
+			std::memcpy(pred.get(),t.pred.get(),sizeof(ll)*(rg+1));
+		}
+		if(t.preds){
+			preds=std::make_unique<ll[]>(rg+1);
+			std::memcpy(preds.get(),t.preds.get(),sizeof(ll)*(rg+1));
+		}
+	}
+	std::vector<std::pair<uint,uint>> sieve::factor(uint k) const {
+		std::vector<std::pair<uint,uint>> ret;
+		while(k>1){
+			uint p=ps[mnf[k]-1],c=0;
+			while((k%p)==0) ++c,k/=p;
+			ret.push_back({p,c});
+		}
+		return ret;
+	}
 }
 namespace tools
 {
