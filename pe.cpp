@@ -300,7 +300,8 @@ namespace math
 	sieve::~sieve(){release();}
 	sieve::sieve(){}
 	void sieve::init(uint maxn,int flg){
-		flg|=(flg<<sieve_prefix_sum_offset);rg=maxn;pc=0;
+		release();
+		flg|=(flg>>sieve_prefix_sum_offset);rg=maxn;pc=0;
 		mnf=std::make_unique<uint[]>(maxn+1);vis=std::make_unique<bool[]>(maxn+1);
 		if(flg&sieve_mu) _mu=std::make_unique<int[]>(maxn+1),_mu[0]=0,_mu[1]=1;
 		if(flg&sieve_euler_phi) phi=std::make_unique<uint[]>(maxn+1),phi[0]=0,phi[1]=1;
