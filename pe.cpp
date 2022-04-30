@@ -205,7 +205,7 @@ namespace math
 	polynomial::polynomial():F1(P2),F2(P2),F3(P3){}
 	polynomial::~polynomial(){release();}
 	void polynomial::init(uint max_conv_size,uint P0){
-		release();P=P0;
+		release();P=P0;F=FastMod(P);
 		set_mod(P1);
 		pn1.init(max_conv_size,P1,3);
 		set_mod(P2);
@@ -445,6 +445,7 @@ namespace math
 	_random_engine random_engine(default_mod);
 	ull factorization::fast_pow_mod(ull a,ull b,ull c){ull ans=1,off=a;while(b){if(b&1) ans=(__uint128_t)ans*off%c;off=(__uint128_t)off*off%c;b>>=1;}return ans;}
 	bool factorization::is_prime(ull k){
+		if(global_sieve_range>=k) return global_sieve.is_prime(k);
 		for(ull c:bases) if(k==c) return true;
 		for(ull c:bases) if(k>=c){
 			ull d=k-1,res=fast_pow_mod(c,d,k);
@@ -487,6 +488,12 @@ namespace math
 		_factorize(n,cnt,pms),_factorize(p,cnt*c,pms);
 	}
 	std::vector<std::pair<ull,uint> > factorization::factor(ull k){
+		if(global_sieve_range>=k){
+			auto vv=global_sieve.factor(k);
+			std::vector<std::pair<ull,uint>> v2;
+			for(auto &&v:vv) v2.push_back(std::make_pair(v.first,v.second));
+			return v2;
+		}
 		std::vector<ull> pms;_factorize(k,1,pms);
 		std::sort(pms.begin(),pms.end());std::vector<std::pair<ull,uint>> res;
 		for(uint i=0,j;i<pms.size();i=j){
@@ -494,6 +501,56 @@ namespace math
 			res.push_back(std::make_pair(pms[i],j-i));
 		}
 		return res;
+	}
+	polynomial_ntt::polynomial_ntt(uint max_conv_size,uint P0,uint G0){init(max_conv_size,P0,G0);}
+	polynomial::polynomial(uint max_conv_size,uint P0):F1(P1),F2(P2),F3(P3){init(max_conv_size,P0);}
+	linear_modulo_preprocessing::linear_modulo_preprocessing(uint maxn,uint P){init(maxn,P);}
+	sieve::sieve(uint maxn,int flag){init(maxn,flag);}
+	sieve global_sieve;uint global_sieve_range=0;int global_sieve_flag=0;
+	void set_global_sieve(uint rg,int flag){
+		global_sieve_range=rg;global_sieve_flag=flag;
+		global_sieve.init(rg,flag);
+	}
+	ull factorization::fast_pow_without_mod(ull a,uint b){ull ans=1,off=a;while(b){if(b&1) ans=ans*off;off=off*off;b>>=1;}return ans;}
+	std::vector<ull> factorization::divisors_set(const std::vector<std::pair<ull,uint>> &decomp){
+		std::function<void(uint,ull,const std::vector<std::pair<ull,uint>> &,std::vector<ull> &)> calc=[&](uint pos,ull cur,const std::vector<std::pair<ull,uint>> &decomp,std::vector<ull> &res)->void{
+			if(!pos){res.push_back(cur);return;}
+			ull pp=1;
+			for(uint i=0;i<=decomp[pos-1].second;++i){
+				calc(pos-1,pp*cur,decomp,res);
+				pp*=decomp[pos-1].first;
+			}
+		};
+		std::vector<ull> res;
+		calc(decomp.size(),1,decomp,res);
+		std::sort(res.begin(),res.end());
+		return res;
+	}
+	std::vector<ull> factorization::divisors_set(ull k){return divisors_set(factor(k));}
+	int factorization::moebius(ull k){
+		if(global_sieve_range>=k && (global_sieve_flag&sieve_mu)) return global_sieve.mu(k);
+		return moebius(factor(k));
+	}
+	int factorization::moebius(const std::vector<std::pair<ull,uint>> &decomp){
+		bool g2=false;
+		for(auto &&v:decomp) if(v.second>=2){g2=true;break;}
+		return g2?0:((decomp.size()&1)?(-1):1);
+	}
+	ull factorization::euler_phi(ull k){
+		if(global_sieve_range>=k && (global_sieve_flag&sieve_euler_phi)) return global_sieve.euler_phi(k);
+		return euler_phi(factor(k));
+	}
+	ull factorization::euler_phi(const std::vector<std::pair<ull,uint>> &decomp){
+		ull ans=1;
+		for(auto &&v:decomp) ans*=fast_pow_without_mod(v.first,v.second-1)*(v.first-1);
+		return ans;
+	}
+	ull factorization::sigma(ull k,uint s){return sigma(factor(k),s);}
+	ull factorization::sigma(const std::vector<std::pair<ull,uint>> &decomp,uint s){
+		std::function<ull(ull,uint)> calc=[&](ull a,uint b){ull ans=0,off=1,sc=a;while(b){if(b&1) ans=ans*sc+off;off=off*sc+off;sc=sc*sc;b>>=1;}return ans;};
+		ull ans=1;
+		for(auto &&v:decomp) ans*=calc(fast_pow_without_mod(v.first,s),v.second+1);
+		return ans;
 	}
 }
 namespace tools

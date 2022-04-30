@@ -35,6 +35,7 @@
 #include <cstring>
 #include <random>
 #include <algorithm>
+#include <functional>
 
 namespace math
 {
@@ -154,6 +155,7 @@ namespace math
 		void release();
 	public:
 		friend class polynomial;
+		polynomial_ntt(uint max_conv_size,uint P0,uint G0);
 		void init(uint max_conv_size,uint P0,uint G0);
 		polynomial_ntt(const polynomial_ntt &d);
 		polynomial_ntt();
@@ -177,6 +179,7 @@ namespace math
 		void release();
 		polynomial(const polynomial &d);
 		polynomial();
+		polynomial(uint max_conv_size,uint P0);
 		~polynomial();
 		void init(uint max_conv_size,uint P0);
 		poly mul(const poly &a,const poly &b);
@@ -184,34 +187,30 @@ namespace math
 		poly ln(const poly &a);
 		poly exp(const poly &a);
 	};
-	class fast_binomial_2_64
+	namespace fast_binomial_2_64
 	{
-	private:
 		#include <coefs_for_fast_binomial_2_64>
-		static constexpr __uint128_t coefs[32][32]=coefs_for_fast_binomial_2_64;
-		static constexpr ull bases[32]=coefs_for_fast_binomial_2_64_bases;
-		static ull fast_pow(ull a,ull b);
-		static ull calc_bju(ull j,ull u);
-	public:
-		static ull odd_factorial(ull k);
-		static ull factorial_odd(ull k);
-		static ull factorial(ull k);
-		static ull binomial(ull upper,ull lower);
+		constexpr __uint128_t coefs[32][32]=coefs_for_fast_binomial_2_64;
+		constexpr ull bases[32]=coefs_for_fast_binomial_2_64_bases;
+		ull fast_pow(ull a,ull b);
+		ull calc_bju(ull j,ull u);
+		ull odd_factorial(ull k);
+		ull factorial_odd(ull k);
+		ull factorial(ull k);
+		ull binomial(ull upper,ull lower);
 	};
-	class fast_binomial_2_32
+	namespace fast_binomial_2_32
 	{
-	private:
 		#include <coefs_for_fast_binomial_2_32>
-		static constexpr ull coefs[16][16]=coefs_for_fast_binomial_2_32;
-		static constexpr uint bases[16]=coefs_for_fast_binomial_2_32_bases;
-		static uint fast_pow(uint a,uint b);
-		static uint calc_bju(uint j,uint u);
-	public:
-		static uint odd_factorial(uint k);
-		static uint factorial_odd(uint k);
-		static uint factorial(uint k);
-		static uint binomial(uint upper,uint lower);
-	};
+		constexpr ull coefs[16][16]=coefs_for_fast_binomial_2_32;
+		constexpr uint bases[16]=coefs_for_fast_binomial_2_32_bases;
+		uint fast_pow(uint a,uint b);
+		uint calc_bju(uint j,uint u);
+		uint odd_factorial(uint k);
+		uint factorial_odd(uint k);
+		uint factorial(uint k);
+		uint binomial(uint upper,uint lower);
+	}
 	class linear_modulo_preprocessing
 	{
 	private:
@@ -219,6 +218,7 @@ namespace math
 		void release();
 	public:
 		linear_modulo_preprocessing();
+		linear_modulo_preprocessing(uint maxn,uint P);
 		linear_modulo_preprocessing(const linear_modulo_preprocessing &d);
 		~linear_modulo_preprocessing();
 		void init(uint maxn,uint P);
@@ -238,6 +238,7 @@ namespace math
 		sieve_prefix_sum_euler_phi=1<<(sieve_prefix_sum_offset+1),
 		sieve_prefix_sum_divisors=1<<(sieve_prefix_sum_offset+2),
 		sieve_prefix_sum_divisors_sum=1<<(sieve_prefix_sum_offset+3),
+		sieve_all=sieve_mu|sieve_euler_phi|sieve_divisors|sieve_divisors_sum|sieve_prefix_sum_mu|sieve_prefix_sum_euler_phi|sieve_prefix_sum_divisors|sieve_prefix_sum_divisors_sum
 	};
 	class sieve
 	{
@@ -251,8 +252,9 @@ namespace math
 	public:
 		sieve();
 		~sieve();
+		sieve(uint maxn,int flag=0);
 		sieve(const sieve &t);
-		void init(uint maxn,int flag);
+		void init(uint maxn,int flag=0);
 		uint prime_count() const;
 		std::vector<uint> all_primes() const;
 		uint nth_prime(uint k) const;
@@ -269,6 +271,10 @@ namespace math
 		ll prefix_sum_divisors_sum(uint k) const;
 		uint prime_index(uint k) const;
 	};
+	extern sieve global_sieve;
+	extern uint global_sieve_range;
+	extern int global_sieve_flag;
+	void set_global_sieve(uint rg,int flag=sieve_all);
 	struct _random_engine
 	{
 		std::mt19937_64 random_engine;
@@ -279,23 +285,29 @@ namespace math
 	#ifdef _OPENMP
 	#pragma omp threadprivate(random_engine)
 	#endif
-	class basic
+	namespace basic
 	{
-	public:
-		static ull gcdll(ull a,ull b);
-		static uint gcd(uint a,uint b);
-	};
-	class factorization
+		ull gcdll(ull a,ull b);
+		uint gcd(uint a,uint b);
+	}
+	namespace factorization
 	{
-	private:
-		static ull fast_pow_mod(ull a,ull b,ull c);
-		static constexpr ull bases[]={2,325,9375,28178,450775,9780504,1795265022};
-		static ull pollard_rho(ull x);
-		static void _factorize(ull n,uint cnt,std::vector<ull> &pms);
-	public:
-		static bool is_prime(ull k);
-		static std::vector<std::pair<ull,uint> > factor(ull k);
-	};
+		ull fast_pow_mod(ull a,ull b,ull c);
+		ull fast_pow_without_mod(ull a,uint b);
+		constexpr ull bases[]={2,325,9375,28178,450775,9780504,1795265022};
+		ull pollard_rho(ull x);
+		void _factorize(ull n,uint cnt,std::vector<ull> &pms);
+		bool is_prime(ull k);
+		std::vector<std::pair<ull,uint> > factor(ull k);
+		ull euler_phi(ull k);
+		ull euler_phi(const std::vector<std::pair<ull,uint>> &decomp);
+		int moebius(ull k);
+		int moebius(const std::vector<std::pair<ull,uint>> &decomp);
+		std::vector<ull> divisors_set(ull k);
+		std::vector<ull> divisors_set(const std::vector<std::pair<ull,uint>> &decomp);
+		ull sigma(ull k,uint s);
+		ull sigma(const std::vector<std::pair<ull,uint>> &decomp,uint s);
+	}
 }
 namespace tools
 {
