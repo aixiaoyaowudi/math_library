@@ -33,6 +33,8 @@
 #include <iomanip>
 #include <stdexcept>
 #include <cstring>
+#include <random>
+#include <algorithm>
 
 namespace math
 {
@@ -266,6 +268,33 @@ namespace math
 		ll prefix_sum_divisors(uint k) const;
 		ll prefix_sum_divisors_sum(uint k) const;
 		uint prime_index(uint k) const;
+	};
+	struct _random_engine
+	{
+		std::mt19937_64 random_engine;
+		_random_engine(uint seed):random_engine(seed){}
+		decltype(random_engine()) operator()(){return random_engine();}
+	};
+	extern _random_engine random_engine;
+	#ifdef _OPENMP
+	#pragma omp threadprivate(random_engine)
+	#endif
+	class basic
+	{
+	public:
+		static ull gcdll(ull a,ull b);
+		static uint gcd(uint a,uint b);
+	};
+	class factorization
+	{
+	private:
+		static ull fast_pow_mod(ull a,ull b,ull c);
+		static constexpr ull bases[]={2,325,9375,28178,450775,9780504,1795265022};
+		static ull pollard_rho(ull x);
+		static void _factorize(ull n,uint cnt,std::vector<ull> &pms);
+	public:
+		static bool is_prime(ull k);
+		static std::vector<std::pair<ull,uint> > factor(ull k);
 	};
 }
 namespace tools

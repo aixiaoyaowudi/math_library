@@ -422,6 +422,79 @@ namespace math
 		}
 		return ret;
 	}
+	ull basic::gcdll(ull a,ull b){
+		if(!a || !b) return a|b;uint t=__builtin_ctzll(a|b);
+		a>>=__builtin_ctzll(a);
+		do{
+			b>>=__builtin_ctzll(b);
+			if(a>b) std::swap(a,b);
+			b-=a;
+		}while(b);
+		return a<<t;
+	}
+	uint basic::gcd(uint a,uint b){
+		if(!a || !b) return a|b;uint t=__builtin_ctz(a|b);
+		a>>=__builtin_ctz(a);
+		do{
+			b>>=__builtin_ctz(b);
+			if(a>b) std::swap(a,b);
+			b-=a;
+		}while(b);
+		return a<<t;
+	}
+	_random_engine random_engine(default_mod);
+	ull factorization::fast_pow_mod(ull a,ull b,ull c){ull ans=1,off=a;while(b){if(b&1) ans=(__uint128_t)ans*off%c;off=(__uint128_t)off*off%c;b>>=1;}return ans;}
+	bool factorization::is_prime(ull k){
+		for(ull c:bases) if(k==c) return true;
+		for(ull c:bases) if(k>=c){
+			ull d=k-1,res=fast_pow_mod(c,d,k);
+			if(res!=1) return false;
+			while(d&1^1){
+				if((d>>=1),((res=fast_pow_mod(c,d,k))==k-1)) break;
+				else if(res!=1){
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	ull factorization::pollard_rho(ull x)
+	{
+		ull s=0,t=0,c=((ull)random_engine())%(x-1)+1,j=0,k=1,tmp=1;
+		for(k=1;;k<<=1,s=t,tmp=1){
+			for(j=1;j<=k;++j){
+				t=((__uint128_t)t*t+c)%x;
+				tmp=(__uint128_t)tmp*std::abs((ll)t-(ll)s)%x;
+				if((j%127)==0){
+					ull d=basic::gcdll(tmp,x);
+					if(d>1) return d;
+				}
+			}
+			ull d=basic::gcdll(tmp,x);
+			if(d>1) return d;
+		}
+		return 1;
+	}
+	void factorization::_factorize(ull n,uint cnt,std::vector<ull> &pms){
+		if(n<2) return;
+		if(is_prime(n)){
+			for(uint i=0;i<cnt;++i) pms.push_back(n);
+			return;
+		}
+		ull p=n;
+		while(p>=n) p=pollard_rho(n);uint c=0;
+		while((n%p)==0) n/=p,++c;
+		_factorize(n,cnt,pms),_factorize(p,cnt*c,pms);
+	}
+	std::vector<std::pair<ull,uint> > factorization::factor(ull k){
+		std::vector<ull> pms;_factorize(k,1,pms);
+		std::sort(pms.begin(),pms.end());std::vector<std::pair<ull,uint>> res;
+		for(uint i=0,j;i<pms.size();i=j){
+			for(j=i;j<pms.size() && pms[j]==pms[i];++j);
+			res.push_back(std::make_pair(pms[i],j-i));
+		}
+		return res;
+	}
 }
 namespace tools
 {
