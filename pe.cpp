@@ -442,6 +442,10 @@ namespace math
 		}while(b);
 		return a<<t;
 	}
+	ll basic::exgcdll(ll a,ll b,ll &x,ll &y){
+		if(!a){x=0;y=1;return b;};ll g=exgcdll(b%a,a,y,x);
+		x-=y*(b/a);return g;
+	}
 	_random_engine random_engine(default_mod);
 	ull factorization::fast_pow_mod(ull a,ull b,ull c){ull ans=1,off=a;while(b){if(b&1) ans=(__uint128_t)ans*off%c;off=(__uint128_t)off*off%c;b>>=1;}return ans;}
 	bool factorization::is_prime(ull k){
@@ -513,16 +517,16 @@ namespace math
 	}
 	ull factorization::fast_pow_without_mod(ull a,uint b){ull ans=1,off=a;while(b){if(b&1) ans=ans*off;off=off*off;b>>=1;}return ans;}
 	std::vector<ull> factorization::divisors_set(const std::vector<std::pair<ull,uint>> &decomp){
-		std::function<void(uint,ull,const std::vector<std::pair<ull,uint>> &,std::vector<ull> &)> calc=[&](uint pos,ull cur,const std::vector<std::pair<ull,uint>> &decomp,std::vector<ull> &res)->void{
+		std::vector<ull> res;
+		std::function<void(uint,ull)> calc=[&](uint pos,ull cur)->void{
 			if(!pos){res.push_back(cur);return;}
 			ull pp=1;
 			for(uint i=0;i<=decomp[pos-1].second;++i){
-				calc(pos-1,pp*cur,decomp,res);
+				calc(pos-1,pp*cur);
 				pp*=decomp[pos-1].first;
 			}
 		};
-		std::vector<ull> res;
-		calc(decomp.size(),1,decomp,res);
+		calc(decomp.size(),1);
 		std::sort(res.begin(),res.end());
 		return res;
 	}
@@ -551,6 +555,91 @@ namespace math
 		ull ans=1;
 		for(auto &&v:decomp) ans*=calc(fast_pow_without_mod(v.first,s),v.second+1);
 		return ans;
+	}
+	ull modulo::primitive_root(ull k){
+		ull epi=factorization::euler_phi(k);
+		auto v=factorization::factor(epi);std::vector<ull> chk_list;
+		for(auto &vv:v) chk_list.push_back(epi/vv.first);
+		for(ull i=1;;++i) if(basic::gcdll(i,k)==1){
+			bool flg=true;
+			for(ull v:chk_list) if(factorization::fast_pow_mod(i,v,k)==1) flg=false;
+			if(flg) return i;
+		}
+		return 0;
+	}
+	void modulo::BSGS::release(){
+		rev.clear();
+	}
+	modulo::BSGS::BSGS(){}
+	modulo::BSGS::~BSGS(){}
+	modulo::BSGS::BSGS(const BSGS &d):rev(d.rev),P(d.P),x(d.x),sqrtp(d.sqrtp),blk(d.blk),pei(d.pei){}
+	modulo::BSGS::BSGS(ull P0,ull x0){init(P0,x0);}
+	ll modulo::inverse_mod(ll x,ll n){
+		ll x1,x2;basic::exgcdll(x,n,x1,x2);
+		return (x1%(ll)n+n)%n;
+	}
+	void modulo::BSGS::init(ull P0,ull x0){
+		release();pei=factorization::euler_phi(P0);
+		x=x0,P=P0;sqrtp=sqrt(pei)+1;ull invx=inverse_mod(x,P);
+		blk=factorization::fast_pow_mod(invx,sqrtp,P);
+		for(ull i=sqrtp-1,val=factorization::fast_pow_mod(x,sqrtp-1,P);~i;--i,val=(__uint128_t)val*invx%P) rev[val]=i;
+	}
+	ull modulo::BSGS::solve(ull y) const {
+		for(ull i=0;i<sqrtp;++i,y=(__uint128_t)y*blk%P) if(rev.find(y)!=rev.end()) return (rev.find(y)->second)+i*sqrtp;
+		return ~0ull;
+	}
+	std::vector<ull> modulo::naive_cbrt_mod(ull x,ull n){
+		auto dc=factorization::factor(n);
+		std::function<std::pair<std::array<ull,3>,ull>(ull,uint,ull)> calc=[&](ull p0,uint u0,ull x0)->std::pair<std::array<ull,3>,ull>{
+			if(!x0){
+				std::array<ull,3> arr={0ull,~0ull,~0ull};
+				return std::make_pair(arr,factorization::fast_pow_without_mod(p0,(u0+2)/3));
+			}
+			std::array<ull,3> arr={~0ull,~0ull,~0ull};
+			uint c=0,ca=0;
+			while((x0%p0)==0) x0/=p0,++c;
+			if(c%3) return std::make_pair(arr,~0ull);
+			ull res=factorization::fast_pow_without_mod(p0,u0-c),
+				rem=factorization::fast_pow_without_mod(p0,c/3);
+			if(p0==2){
+				ull r=0;
+				for(ull i=2;i<=res;i<<=1){
+					if(((r*r*r)&(i-1))!=(x0&(i-1))) r|=(i>>1);
+				}
+				arr[ca++]=r*rem;
+				return std::make_pair(arr,res*rem);
+			}
+			ull g=primitive_root(res);
+			BSGS b(res,g);
+			ull lg=b.solve(x0),epi=res-res/p0;
+			if(!(~lg)) return std::make_pair(arr,~0ull);
+			for(uint i=0;i<3;++i) if(((i*epi+lg)%3)==0) arr[ca++]=factorization::fast_pow_mod(g,((i*epi+lg)/3),res)*rem;
+			if(!ca) return std::make_pair(arr,~0ull);
+			else return std::make_pair(arr,res*rem);
+		};
+		std::vector<std::pair<std::array<ull,3>,ull>> cres;ull all=1,ans=0;
+		for(auto &&vv:dc){
+			auto v=calc(vv.first,vv.second,x%factorization::fast_pow_without_mod(vv.first,vv.second));
+			if(!(~v.second)) return std::vector<ull>();
+			cres.push_back(v);all*=v.second;
+		}
+		for(auto &vv:cres){
+			ull cur=all/vv.second;
+			ull k=inverse_mod(cur,vv.second);
+			for(uint i=0;i<3;++i) if(~vv.first[i]) vv.first[i]=(__uint128_t)vv.first[i]*k%vv.second*cur;
+		}
+		std::vector<ull> ret;
+		std::function<void(uint,ull)> dfs=[&](uint pos,ull cur)->void{
+			if(!pos){for(ull i=cur;i<n;i+=all) ret.push_back(i);return;}
+			for(uint i=0;i<3 && (~cres[pos-1].first[i]);++i){
+				ull c0=cur+cres[pos-1].first[i];
+				if(c0>=all) c0-=all;
+				dfs(pos-1,c0);
+			}
+		};
+		dfs(cres.size(),0);
+		std::sort(ret.begin(),ret.end());
+		return ret;
 	}
 }
 namespace tools

@@ -36,6 +36,9 @@
 #include <random>
 #include <algorithm>
 #include <functional>
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/hash_policy.hpp>
+#include <array>
 
 namespace math
 {
@@ -289,6 +292,7 @@ namespace math
 	{
 		ull gcdll(ull a,ull b);
 		uint gcd(uint a,uint b);
+		ll exgcdll(ll a,ll b,ll &x,ll &y);
 	}
 	namespace factorization
 	{
@@ -307,6 +311,39 @@ namespace math
 		std::vector<ull> divisors_set(const std::vector<std::pair<ull,uint>> &decomp);
 		ull sigma(ull k,uint s);
 		ull sigma(const std::vector<std::pair<ull,uint>> &decomp,uint s);
+	}
+	namespace modulo
+	{
+		ull primitive_root(ull k);
+		ll inverse_mod(ll x,ll n);
+		class BSGS
+		{
+		private:
+			struct custom_hash {
+				static uint64_t splitmix64(uint64_t x) {
+					x += 0x9e3779b97f4a7c15;
+					x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9;
+					x = (x ^ (x >> 27)) * 0x94d049bb133111eb;
+					return x ^ (x >> 31);
+				}
+
+				size_t operator()(uint64_t x) const {
+					static const uint64_t FIXED_RANDOM = std::chrono::steady_clock::now().time_since_epoch().count();
+					return splitmix64(x + FIXED_RANDOM);
+				}
+			};
+			__gnu_pbds::gp_hash_table<ull,ull,custom_hash> rev;
+			ull P,x,sqrtp,blk,pei;
+			void release();
+		public:
+			BSGS();
+			~BSGS();
+			BSGS(const BSGS &d);
+			BSGS(ull P0,ull x0);
+			void init(ull P0,ull x0);
+			ull solve(ull y) const;
+		};
+		std::vector<ull> naive_cbrt_mod(ull x,ull n);
 	}
 }
 namespace tools
