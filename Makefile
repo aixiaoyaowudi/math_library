@@ -1,7 +1,5 @@
 COMPILER     = icpc
-CPPFLAGS     = -std=c++17 -Ofast -I./
-OPENMP_FLAGS = -fopenmp
-AVX_FLAGS    = -xcore-avx2
+CPPFLAGS     = -std=c++17 -Ofast -I./ -march=coffeelake -fopenmp -restrict
 PACK         = ar -crv
 
 default: all
@@ -25,25 +23,13 @@ bin/libpe.a:pe.cpp pe.hpp
 	$(PACK) bin/libpe.a bin/libpe.o
 	@rm -f bin/libpe.o
 
-bin/libpe_with_omp.a:pe.cpp pe.hpp
-	@mkdir -p bin/
-	$(COMPILER) $(CPPFLAGS) $(OPENMP_FLAGS) $< -c -o bin/libpe_with_omp.o
-	$(PACK) bin/libpe_with_omp.a bin/libpe_with_omp.o
-	@rm -f bin/libpe_with_omp.o
+bin/test:func_tests.cpp all
+	$(COMPILER) $(CPPFLAGS) $< -L./bin/ -lpe -o bin/test
 
-bin/libpe_with_avx2.a:pe.cpp pe.hpp
-	@mkdir -p bin/
-	$(COMPILER) $(CPPFLAGS) $(AVX_FLAGS) $< -c -o bin/libpe_with_avx2.o
-	$(PACK) bin/libpe_with_avx2.a bin/libpe_with_avx2.o
-	@rm -f bin/libpe_with_avx2.o
+test:bin/test
+	./bin/test
 
-bin/libpe_with_omp_avx2.a:pe.cpp pe.hpp
-	@mkdir -p bin/
-	$(COMPILER) $(CPPFLAGS) $(AVX_FLAGS) $(OPENMP_FLAGS) $< -c -o bin/libpe_with_omp_avx2.o
-	$(PACK) bin/libpe_with_omp_avx2.a bin/libpe_with_omp_avx2.o
-	@rm -f bin/libpe_with_omp_avx2.o
-
-all: bin/pe.hpp bin/coefs_for_fast_binomial_2_32 bin/coefs_for_fast_binomial_2_64 bin/libpe.a bin/libpe_with_omp.a bin/libpe_with_avx2.a bin/libpe_with_omp_avx2.a
+all: bin/pe.hpp bin/coefs_for_fast_binomial_2_32 bin/coefs_for_fast_binomial_2_64 bin/libpe.a
 	@echo done >/dev/null
 
 clean:

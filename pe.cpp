@@ -14,633 +14,307 @@
 
 namespace math
 {
-	int global_mod=default_mod;
-	FastMod global_fast_mod=FastMod(default_mod);
-	mint fast_pow(mint a,ull b){mint ans=mint(1),off=a;while(b){if(b&1) ans*=off;off*=off;b>>=1;}return ans;}
-	montgomery_int_lib montgomery_int::mlib=montgomery_int_lib(default_mod);
-	void set_mint_mod(uint32_t p){
-		mint::mlib=montgomery_int_lib(p);
-	}
-	#if defined(__AVX__) && defined(__AVX2__)
-	montgomery_mm256_lib montgomery_mm256_int::mlib=montgomery_mm256_lib(default_mod);
-	void set_m256int_mod(uint32_t p){
-		m256int::mlib=montgomery_mm256_lib(p);
-	}
-	#endif
-	void set_mod_for_all_threads(uint32_t p){
-		#if defined(_OPENMP)
-		#pragma omp parallel
-		{
-		#endif
-			global_mod=p;
-			global_fast_mod=FastMod(p);
-			set_mint_mod(p);
+	namespace modulo{
+		namespace mod_int{
+			ui global_mod_mi=default_mod;
+			fast_mod_32 global_fast_mod(default_mod);
+			montgomery_mi_lib mi::mlib(default_mod);
+			void set_mod_mi(ui p){
+				mi::mlib=montgomery_mi_lib(p);
+				global_fast_mod=fast_mod_32(p);
+				global_mod_mi=p;
+			}
+			void set_mod_for_all_threads_mi(ui p){
+				#if defined(_OPENMP)
+				#pragma omp parallel
+				{
+				#endif
+					mi::mlib=montgomery_mi_lib(p);
+					global_fast_mod=fast_mod_32(p);
+					global_mod_mi=p;
+				#if defined(_OPENMP)
+				}
+				#endif
+			}
+			ull global_mod_mli=default_mod;
+			montgomery_mli_lib mli::mlib(default_mod);
+			void set_mod_mli(ull p){
+				mli::mlib=montgomery_mli_lib(p);
+				global_mod_mli=p;
+			}
+			void set_mod_for_all_threads_mli(ull p){
+				#if defined(_OPENMP)
+				#pragma omp parallel
+				{
+				#endif
+					mli::mlib=montgomery_mli_lib(p);
+					global_mod_mli=p;
+				#if defined(_OPENMP)
+				}
+				#endif
+			}
 			#if defined(__AVX__) && defined(__AVX2__)
-			set_m256int_mod(p);
+			ui global_mod_mai=default_mod;
+			montgomery_mm256_lib mai::mlib(default_mod);
+			void set_mod_mai(ui p){
+				mai::mlib=montgomery_mm256_lib(p);
+				global_mod_mai=p;
+			}
+			void set_mod_for_all_threads_mai(ui p){
+				#if defined(_OPENMP)
+				#pragma omp parallel
+				{
+				#endif
+					mai::mlib=montgomery_mm256_lib(p);
+					global_mod_mai=p;
+				#if defined(_OPENMP)
+				}
+				#endif
+			}
 			#endif
-		#if defined(_OPENMP)
-		}
-		#endif
-	}
-	void set_mod(uint32_t p){
-		global_mod=p;
-		global_fast_mod=FastMod(p);
-		set_mint_mod(p);
-		#if defined(__AVX__) && defined(__AVX2__)
-		set_m256int_mod(p);
-		#endif
-	}
-	uint fast_binomial_2_32::fast_pow(uint a,uint b){uint ans=1,off=a;while(b){if(b&1) ans=ans*off;off=off*off;b>>=1;}return ans;}
-	uint fast_binomial_2_32::calc_bju(uint j,uint u){
-		ull cur=0,u2=1ull*u*u;
-		for(uint i=15;~i;--i) cur=cur*u2+coefs[j][i];cur*=u;
-		return fast_pow(bases[j],(cur>>32));
-	}
-	uint fast_binomial_2_32::odd_factorial(uint k){
-		uint ans=1;uint k0=(k>>1);if(k&1) ++k0;
-		for(int j=0;j<16;++j) ans*=calc_bju(j,k0);
-		if((ans&2)!=((k0+1)&2)) ans=-ans;
-		return ans;
-	}
-	uint fast_binomial_2_32::factorial_odd(uint k){
-		uint ans=1;
-		while(k){ans*=odd_factorial(k);k>>=1;}
-		return ans;
-	}
-	uint fast_binomial_2_32::factorial(uint k){
-		uint cnt2=0;
-		while(k){cnt2+=(k>>1);k>>=1;}
-		if(cnt2>=32) return 0;
-		return factorial_odd(k)<<cnt2;
-	}
-	uint fast_binomial_2_32::binomial(uint upper,uint lower){
-		if(upper<lower) return 0;uint cnt2=__builtin_popcount(lower)+__builtin_popcount(upper-lower)-__builtin_popcount(upper);
-		if(cnt2>=32) return 0;
-		uint c=fast_pow(factorial_odd(lower)*factorial_odd(upper-lower),(1u<<31)-1)*factorial_odd(upper);
-		return c<<cnt2;
-	}
-	ull fast_binomial_2_64::fast_pow(ull a,ull b){ull ans=1,off=a;while(b){if(b&1) ans=ans*off;off=off*off;b>>=1;}return ans;}
-	ull fast_binomial_2_64::calc_bju(ull j,ull u){
-		__uint128_t cur=0,u2=__uint128_t(u)*u;
-		for(uint i=31;~i;--i) cur=cur*u2+coefs[j][i];cur*=u;
-		return fast_pow(bases[j],(cur>>64));
-	}
-	ull fast_binomial_2_64::odd_factorial(ull k){
-		ull ans=1;ull k0=(k>>1);if(k&1) ++k0;
-		for(int j=0;j<32;++j) ans*=calc_bju(j,k0);
-		if((ans&2)!=((k0+1)&2)) ans=-ans;
-		return ans;
-	}
-	ull fast_binomial_2_64::factorial_odd(ull k){
-		ull ans=1;
-		while(k){ans*=odd_factorial(k);k>>=1;}
-		return ans;
-	}
-	ull fast_binomial_2_64::factorial(ull k){
-		uint cnt2=0;
-		while(k){cnt2+=(k>>1);k>>=1;}
-		if(cnt2>=64) return 0;
-		return factorial_odd(k)<<cnt2;
-	}
-	ull fast_binomial_2_64::binomial(ull upper,ull lower){
-		if(upper<lower) return 0;uint cnt2=__builtin_popcountll(lower)+__builtin_popcountll(upper-lower)-__builtin_popcountll(upper);
-		if(cnt2>=64) return 0;
-		ull c=fast_pow(factorial_odd(lower)*factorial_odd(upper-lower),(1ull<<63)-1)*factorial_odd(upper);
-		return c<<cnt2;
-	}
-	void polynomial_ntt::release(){
-		ws0.reset();ws1.reset();fac.reset();ifac.reset();_inv.reset();tt.reset();
-		rev.reset();lgg.reset();
-	}
-	void polynomial_ntt::init(uint max_conv_size,uint P0,uint G0){
-		release();P=P0,G=G0;
-		fn=1;fb=0;while(fn<(max_conv_size<<1)) fn<<=1,++fb;
-		_inv=create_aligned_array<mint,32>(fn+32);ws0 =create_aligned_array<mint,32>(fn+32);
-		ws1 =create_aligned_array<mint,32>(fn+32);fac =create_aligned_array<mint,32>(fn+32);
-		ifac=create_aligned_array<mint,32>(fn+32);tt  =create_aligned_array<mint,32>(fn+32);
-		rev =create_aligned_array<uint,32>(fn+32);lgg =create_aligned_array<uint,32>(fn+32);
-		_inv[1]=mint(1);for(uint i=2;i<=fn;++i) _inv[i]=(-mint(P/i))*_inv[P%i];
-		ifac[0]=fac[0]=mint(1);for(uint i=1;i<=fn;++i) fac[i]=mint(i)*fac[i-1],ifac[i]=ifac[i-1]*_inv[i];
-		rev[0]=0;for(uint i=0;i<fn;++i) rev[i]=(rev[i>>1]>>1)|((i&1)<<(fb-1));
-		lgg[0]=lgg[1]=0;for(uint i=2;i<=fn;++i) lgg[i]=lgg[(i+1)>>1]+1;
-		mint j0=fast_pow(mint(G),(P-1)/fn),j1=fast_pow(fast_pow(mint(G),(P-2)),(P-1)/fn);
-		for(uint mid=(fn>>1);mid>=1;mid>>=1,j0*=j0,j1*=j1){
-			mint w0(1),w1(1);
-			for(uint i=0;i<mid;++i,w0*=j0,w1*=j1) ws0[i+mid]=w0,ws1[i+mid]=w1;
 		}
 	}
-	polynomial_ntt::polynomial_ntt(const polynomial_ntt &d){
-		fn=d.fn,fb=d.fb;P=d.P,G=d.G;
-		if(d.rev){
-			_inv=create_aligned_array<mint,32>(fn+32);ws0 =create_aligned_array<mint,32>(fn+32);
-			ws1 =create_aligned_array<mint,32>(fn+32);fac =create_aligned_array<mint,32>(fn+32);
-			ifac=create_aligned_array<mint,32>(fn+32);tt  =create_aligned_array<mint,32>(fn+32);
-			rev =create_aligned_array<uint,32>(fn+32);lgg =create_aligned_array<uint,32>(fn+32);
-			std::memcpy(ws0.get(), d.ws0.get(), sizeof(mint)*(fn+32));
-			std::memcpy(ws1.get(), d.ws1.get(), sizeof(mint)*(fn+32));
-			std::memcpy(fac.get(), d.fac.get(), sizeof(mint)*(fn+32));
-			std::memcpy(ifac.get(),d.ifac.get(),sizeof(mint)*(fn+32));
-			std::memcpy(_inv.get(),d._inv.get(),sizeof(mint)*(fn+32));
-			std::memcpy(tt.get(),  d.tt.get(),  sizeof(mint)*(fn+32));
-			std::memcpy(rev.get(), d.rev.get(), sizeof(uint)*(fn+32));
-			std::memcpy(lgg.get(), d.lgg.get(), sizeof(uint)*(fn+32));
-		}
-	}
-	polynomial_ntt::polynomial_ntt(){}
-	// TODO: add avx support
-	// #if defined(__AVX__) && defined(__AVX2__)
-	// #else
-	void polynomial_ntt::NTT(poly &p,int V){
-		uint bts=lgg[p.size()];if(p.size()!=(1<<bts)) p.resize((1<<bts));
-		mint *w=(V==1)?ws0.get():ws1.get();uint len=(1<<bts);for(uint i=0;i<len;++i) tt[i]=p[rev[i]>>(fb-bts)];
-		mint t1,t2;
-		for(uint l=2;l<=len;l<<=1)
-			for(uint j=0,mid=(l>>1);j<len;j+=l)
-				for(uint i=0;i<mid;++i) t1=tt[j+i],t2=tt[j+i+mid]*w[mid+i],tt[j+i]=t1+t2,tt[j+i+mid]=t1-t2;
-		if(V==1) for(uint i=0;i<len;++i) p[i]=tt[i];
-		else{mint j=_inv[len];for(uint i=0;i<len;++i) p[i]=tt[i]*j;}
-	}
-	poly polynomial_ntt::mul(const poly &a,const poly &b){
-		poly p1(a),p2(b);uint len=a.size()+b.size()-1,ff=(1<<lgg[len]);
-		p1.resize(ff),p2.resize(ff);NTT(p1,1);NTT(p2,1);
-		for(uint i=0;i<ff;++i) p1[i]*=p2[i];NTT(p1,-1);
-		p1.resize(len);return p1;
-	}
-	poly polynomial_ntt::inv(const poly &a){
-		uint l=a.size();if(l==1){poly ret(1);ret[0]=fast_pow(mint(a[0]),P-2);return ret;}
-		poly g0=a;g0.resize((l+1)>>1);g0=inv(g0);
-		poly p1(a);uint ff=(2<<lgg[l]);g0.resize(ff);p1.resize(ff);mint m2(2);
-		NTT(p1,1);NTT(g0,1);for(uint i=0;i<ff;++i) g0[i]=g0[i]*(m2-g0[i]*p1[i]);
-		NTT(g0,-1);g0.resize(l);return g0;
-	}
-	poly polynomial_ntt::ln(const poly &a){
-		uint l=a.size();poly p1(l-1);
-		for(uint i=1;i<l;++i) p1[i-1]=mint(i)*a[i];
-		p1=mul(p1,inv(a));p1.resize(l-1);poly ret(l);
-		for(uint i=1;i<l;++i) ret[i]=_inv[i]*p1[i-1];ret[0]=mint(0);
-		return ret;
-	}
-	poly polynomial_ntt::exp(const poly &a){
-		uint l=a.size();if(l==1){poly ret(1);ret[0]=mint(1);return ret;}
-		poly g0=a;g0.resize((l+1)>>1);g0=exp(g0);poly g1(g0),g2(a);g1.resize(l);g1=ln(g1);
-		uint ff=(2<<lgg[l]);g0.resize(ff);g1.resize(ff);g2.resize(ff);
-		NTT(g0,1);NTT(g1,1);NTT(g2,1);mint m1(1);
-		for(uint i=0;i<ff;++i) g0[i]=g0[i]*(m1-g1[i]+g2[i]);
-		NTT(g0,-1);g0.resize(l);return g0;
-	}
-	// #endif
-	polynomial_ntt::~polynomial_ntt(){release();}
-	void polynomial::release(){
-		pn1.release();
-		pn2.release();
-		pn3.release();
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::release(){
+		ws0.reset();ws1.reset();
 		_inv.reset();
+		fn=fb=mx=0;
+		for(ui i=0;i<5;++i) tt[i].reset();
 	}
-	polynomial::polynomial(const polynomial &d):pn1(d.pn1),pn2(d.pn2),pn3(d.pn3),F1(P1),F2(P2),F3(P3){
-		if(d._inv){
-			_inv=create_aligned_array<mint,32>(d.pn1.fn+32);P=d.P;F=FastMod(P);N3=1ull*P1*P2%P;
-			memcpy(_inv.get(),d._inv.get(),sizeof(mint)*(d.pn1.fn+32));
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::init(ui max_conv_size,ui P0,ui G0){
+		ui pre_mi_mod=global_mod_mi;
+		if(pre_mi_mod!=P0) set_mod_mi(P0);
+		release();P=P0,G=G0;mx=max_conv_size;
+		fn=1;fb=0;while(fn<(max_conv_size<<1)) fn<<=1,++fb;
+		_inv=create_aligned_array<mi,32>(fn+32);ws0 =create_aligned_array<mi,32>(fn+32);
+		ws1 =create_aligned_array<mi,32>(fn+32);
+		for(ui i=0;i<5;++i)	tt[i] =create_aligned_array<mi,32>(fn+32);
+		_inv[0]=mi(1);for(ui i=2;i<=fn+32;++i) _inv[i-1]=(-mi(P/i))*_inv[(P%i)-1];
+		mi j0=basic::fast_pow(mi(G),(P-1)/fn),j1=basic::fast_pow(basic::fast_pow(mi(G),(P-2)),(P-1)/fn);
+		for(ui mid=(fn>>1);mid>=1;mid>>=1,j0*=j0,j1*=j1){
+			mi w0(1),w1(1);
+			for(ui i=0;i<mid;++i,w0*=j0,w1*=j1) ws0[i+mid]=w0,ws1[i+mid]=w1;
+		}
+		if(pre_mi_mod!=P0) set_mod_mi(pre_mi_mod);
+	}
+	power_series_ring::polynomial_kernel::polynomial_kernel_ntt::polynomial_kernel_ntt(const polynomial_kernel_ntt &d){
+		fn=d.fn,fb=d.fb;P=d.P,G=d.G;mx=d.mx;
+		if(d.mx){
+			_inv=create_aligned_array<mi,32>(fn+32);ws0 =create_aligned_array<mi,32>(fn+32);
+			ws1 =create_aligned_array<mi,32>(fn+32);
+			for(ui i=0;i<5;++i)	tt[i] =create_aligned_array<mi,32>(fn+32);
+			std::memcpy(ws0.get(), d.ws0.get(), sizeof(mi)*(fn+32));
+			std::memcpy(ws1.get(), d.ws1.get(), sizeof(mi)*(fn+32));
+			std::memcpy(_inv.get(),d._inv.get(),sizeof(mi)*(fn+32));
 		}
 	}
-	polynomial::polynomial():F1(P2),F2(P2),F3(P3){}
-	polynomial::~polynomial(){release();}
-	void polynomial::init(uint max_conv_size,uint P0){
-		release();P=P0;F=FastMod(P);
-		set_mod(P1);
-		pn1.init(max_conv_size,P1,3);
-		set_mod(P2);
-		pn2.init(max_conv_size,P2,3);
-		set_mod(P3);
-		pn3.init(max_conv_size,P3,3);
-		set_mod(P);
-		_inv=create_aligned_array<mint,32>(pn1.fn+32);_inv[1]=mint(1);
-		for(uint i=2;i<=pn1.fn;++i) _inv[i]=(-mint(P/i))*_inv[P%i];
-	}
-	poly polynomial::mul(const poly &a,const poly &b){
-		uint la=a.size(),lb=b.size();uint len=a.size()+b.size()-1,ff=(1<<(pn1.lgg[len]));std::vector<uint> r1(len),r2(len),r3(len),na(la),nb(lb);poly ret(len),p1(ff),p2(ff);
-		for(uint i=0;i<la;++i) na[i]=a[i].real_val();
-		for(uint i=0;i<lb;++i) nb[i]=b[i].real_val();
-		set_mod(P1);
-		for(uint i=0;i<la;++i) p1[i]=mint(na[i]);
-		for(uint i=0;i<lb;++i) p2[i]=mint(nb[i]);
-		pn1.NTT(p1,1);pn1.NTT(p2,1);
-		for(uint i=0;i<ff;++i) p1[i]*=p2[i];
-		pn1.NTT(p1,-1);
-		for(uint i=0;i<len;++i) r1[i]=p1[i].real_val();
-		set_mod(P2);
-		for(uint i=0;i<la;++i) p1[i]=mint(na[i]);for(uint i=la;i<ff;++i) p1[i]=mint(0);
-		for(uint i=0;i<lb;++i) p2[i]=mint(nb[i]);for(uint i=lb;i<ff;++i) p2[i]=mint(0);
-		pn2.NTT(p1,1);pn2.NTT(p2,1);
-		for(uint i=0;i<ff;++i) p1[i]*=p2[i];
-		pn2.NTT(p1,-1);
-		for(uint i=0;i<len;++i) r2[i]=p1[i].real_val();
-		set_mod(P3);
-		for(uint i=0;i<la;++i) p1[i]=mint(na[i]);for(uint i=la;i<ff;++i) p1[i]=mint(0);
-		for(uint i=0;i<lb;++i) p2[i]=mint(nb[i]);for(uint i=lb;i<ff;++i) p2[i]=mint(0);
-		pn3.NTT(p1,1);pn3.NTT(p2,1);
-		for(uint i=0;i<ff;++i) p1[i]*=p2[i];
-		pn3.NTT(p1,-1);
-		for(uint i=0;i<len;++i) r3[i]=p1[i].real_val();
-		set_mod(P);
-		for(uint i=0;i<len;++i){
-			uint k1=F2.reduce(1ull*I1*(r2[i]-r1[i]+P2));
-			ull x4=r1[i]+1ull*k1*P1;uint k4=F3.reduce((r3[i]-F3.reduce(x4)+P3)*I2);
-			ret[i]=mint(F.reduce(1ull*N3*k4+x4));
-		}
-		return ret;
-	}
-	poly polynomial::inv(const poly &a){
-		uint l=a.size();if(l==1){poly ret(1);ret[0]=fast_pow(mint(a[0]),P-2);return ret;}
-		poly g0=a;g0.resize((l+1)>>1);g0=inv(g0);poly g1=mul(a,g0);g1.resize(l);
-		for(uint i=0;i<l;++i) g1[i]=-g1[i];g1[0]+=mint(2);g1=mul(g1,g0);g1.resize(l);
-		return g1;
-	}
-	poly polynomial::ln(const poly &a){
-		uint l=a.size();poly p1(l-1);
-		for(uint i=1;i<l;++i) p1[i-1]=mint(i)*a[i];
-		p1=mul(p1,inv(a));p1.resize(l-1);poly ret(l);
-		for(uint i=1;i<l;++i) ret[i]=_inv[i]*p1[i-1];ret[0]=mint(0);
-		return ret;
-	}
-	poly polynomial::exp(const poly &a){
-		uint l=a.size();if(l==1){poly ret(1);ret[0]=mint(1);return ret;}
-		poly g0=a;g0.resize((l+1)>>1);g0=exp(g0);poly g1(g0);g1.resize(l);g1=ln(g1);
-		for(uint i=0;i<l;++i) g1[i]=a[i]-g1[i];g1[0]+=mint(1);g1=mul(g1,g0);g1.resize(l);
-		return g1;
-	}
-	linear_modulo_preprocessing::linear_modulo_preprocessing(){}
-	linear_modulo_preprocessing::~linear_modulo_preprocessing(){release();}
-	void linear_modulo_preprocessing::release(){
-		if(_inv){
-			_inv.reset();fac.reset();ifac.reset();
-		}
-	}
-	void linear_modulo_preprocessing::init(uint maxn,uint P0){
-		release();rg=maxn;P=P0;
-		fac=std::make_unique<mint[]>(rg+32);ifac=std::make_unique<mint[]>(rg+32);_inv=std::make_unique<mint[]>(rg+32);
-		_inv[0]=0,_inv[1]=fac[0]=ifac[0]=1;
-		for(uint i=2;i<rg+32;++i) _inv[i]=(-mint(P/i))*_inv[P%i];
-		for(uint i=1;i<rg+32;++i) fac[i]=fac[i-1]*mint(i),ifac[i]=ifac[i-1]*_inv[i];
-	}
-	linear_modulo_preprocessing::linear_modulo_preprocessing(const linear_modulo_preprocessing &d){
-		if(d._inv){
-			rg=d.rg;P=d.P;
-			fac=std::make_unique<mint[]>(rg+32);ifac=std::make_unique<mint[]>(rg+32);_inv=std::make_unique<mint[]>(rg+32);
-			std::memcpy(fac.get(),d.fac.get(),sizeof(mint)*(rg+32));std::memcpy(ifac.get(),d.ifac.get(),sizeof(mint)*(rg+32));memcpy(_inv.get(),d._inv.get(),sizeof(mint)*(rg+32));
-		}
-	}
-	mint linear_modulo_preprocessing::inverse(uint i) const {return _inv[i];}
-	mint linear_modulo_preprocessing::inverse_factorial(uint i) const {return ifac[i];}
-	mint linear_modulo_preprocessing::factorial(uint i) const {return fac[i];}
-	mint linear_modulo_preprocessing::binomial(uint upper,uint lower) const {if(lower>upper) return mint();return fac[upper]*ifac[lower]*ifac[upper-lower];}
-	void sieve::release(){
-		mnf.reset();_mu.reset();phi.reset();mnfc.reset();pksum.reset();d.reset();ds.reset();
-		premu.reset();preei.reset();pred.reset(),preds.reset();ps.clear();
-	}
-	sieve::~sieve(){release();}
-	sieve::sieve(){}
-	void sieve::init(uint maxn,int flg){
-		release();
-		flg|=(flg>>sieve_prefix_sum_offset);rg=maxn;pc=0;
-		mnf=std::make_unique<uint[]>(maxn+1);vis=std::make_unique<bool[]>(maxn+1);
-		if(flg&sieve_mu) _mu=std::make_unique<int[]>(maxn+1),_mu[0]=0,_mu[1]=1;
-		if(flg&sieve_euler_phi) phi=std::make_unique<uint[]>(maxn+1),phi[0]=0,phi[1]=1;
-		if(flg&sieve_divisors) mnfc=std::make_unique<uint[]>(maxn+1),d=std::make_unique<uint[]>(maxn+1),mnfc[0]=mnfc[1]=0,d[0]=0,d[1]=1;
-		if(flg&sieve_divisors_sum) pksum=std::make_unique<uint[]>(maxn+1),ds=std::make_unique<uint[]>(maxn+1),pksum[0]=pksum[1]=1,ds[0]=0,ds[1]=1;
-		if(flg&sieve_prefix_sum_mu) premu=std::make_unique<ll[]>(maxn+1),premu[0]=0;
-		if(flg&sieve_prefix_sum_euler_phi) preei=std::make_unique<ll[]>(maxn+1),preei[0]=0;
-		if(flg&sieve_prefix_sum_divisors) pred=std::make_unique<ll[]>(maxn+1),pred[0]=0;
-		if(flg&sieve_prefix_sum_divisors_sum) preds=std::make_unique<ll[]>(maxn+1),preds[0]=0;
-		std::memset(vis.get(),0,sizeof(bool)*(maxn+1));
-		mnf[0]=0,mnf[1]=1;
-		for(uint i=2;i<=maxn;++i){
-			if(!vis[i]){
-				ps.push_back(i);++pc;
-				mnf[i]=pc;
-				if(flg&sieve_mu) _mu[i]=-1;
-				if(flg&sieve_euler_phi) phi[i]=i-1;
-				if(flg&sieve_divisors) mnfc[i]=1,d[i]=2;
-				if(flg&sieve_divisors_sum) pksum[i]=i+1,ds[i]=i+1;
+	power_series_ring::polynomial_kernel::polynomial_kernel_ntt::polynomial_kernel_ntt(){fn=fb=mx=0;}
+	power_series_ring::polynomial_kernel::polynomial_kernel_ntt::polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0){init(max_conv_size,P0,G0);}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::dif(mi* restrict p,ui n){
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui len=(1<<n);
+		mi* restrict ws=ws0.get();
+		if(len<8){
+			mi t1,t2;
+			for(ui l=len;l>=2;l>>=1) for(ui j=0,mid=(l>>1);j<len;j+=l){
+				mi restrict *p1=p+j,*p2=p+j+mid,*ww=ws+mid;
+				for(ui i=0;i<mid;++i,++p1,++p2,++ww) t1=*p1,t2=*p2,*p1=t1+t2,*p2=(t1-t2)*(*ww);
 			}
-			for(uint j=0;j<pc && 1ull*ps[j]*i<=maxn;++j){
-				uint t=ps[j]*i;vis[t]=true;mnf[t]=j+1;
-				if((i%ps[j])==0){
-					if(flg&sieve_mu) _mu[t]=0;
-					if(flg&sieve_euler_phi) phi[t]=phi[i]*ps[j];
-					if(flg&sieve_divisors) mnfc[t]=mnfc[i]+1,d[t]=d[i]/(mnfc[i]+1)*(mnfc[t]+1);
-					if(flg&sieve_divisors_sum) pksum[t]=pksum[i]*ps[j]+1,ds[t]=ds[i]/pksum[i]*pksum[t];
-					break;
-				}
-				else{
-					if(flg&sieve_mu) _mu[t]=-_mu[i];
-					if(flg&sieve_euler_phi) phi[t]=phi[i]*(ps[j]-1);
-					if(flg&sieve_divisors) mnfc[t]=1,d[t]=d[i]*2;
-					if(flg&sieve_divisors_sum) pksum[t]=ps[j]+1,ds[t]=ds[i]*(ps[j]+1);
+		}else{
+			__m256i* pp=(__m256i*)p,x,y,*p1,*p2,*ww;
+			__m256i msk,val;
+			for(ui l=len;l>8;l>>=1){
+				ui mid=(l>>1);
+				for(ui j=0;j<len;j+=l){
+					p1=(__m256i*)(p+j),p2=(__m256i*)(p+j+mid),ww=(__m256i*)(ws+mid);
+					for(ui i=0;i<mid;i+=8,++p1,++p2,++ww){
+						x=*p1,y=*p2;
+						*p1=mai::mlib.add(x,y);
+						*p2=mai::mlib.mul(mai::mlib.sub(x,y),*ww);
+					}
 				}
 			}
-		}
-		if(flg>>sieve_prefix_sum_offset){
-			for(uint i=1;i<=maxn;++i){
-				if(flg&sieve_prefix_sum_mu) premu[i]=premu[i-1]+_mu[i];
-				if(flg&sieve_prefix_sum_euler_phi) preei[i]=preei[i-1]+phi[i];
-				if(flg&sieve_prefix_sum_divisors) pred[i]=pred[i-1]+d[i];
-				if(flg&sieve_prefix_sum_divisors_sum) preds[i]=preds[i-1]+ds[i];
+			val=_mm256_setr_epi32(ws[4].get_val(),ws[4].get_val(),ws[4].get_val(),ws[4].get_val(),
+								  ws[4].get_val(),ws[5].get_val(),ws[6].get_val(),ws[7].get_val());
+			msk=_mm256_setr_epi32(0,0,0,0,P*2,P*2,P*2,P*2);
+			pp=(__m256i*)p;
+			for(ui j=0;j<len;j+=8,++pp){
+				x=_mm256_permute4x64_epi64(*pp,0x4E);
+				y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,1,1,1,-1,-1,-1,-1)),msk);
+				*pp=mai::mlib.mul(mai::mlib.redd(_mm256_add_epi32(x,y)),val);
+			}
+			val=_mm256_setr_epi32(ws[2].get_val(),ws[2].get_val(),ws[2].get_val(),ws[3].get_val(),
+								  ws[2].get_val(),ws[2].get_val(),ws[2].get_val(),ws[3].get_val());
+			msk=_mm256_setr_epi32(0,0,P*2,P*2,0,0,P*2,P*2);
+			pp=(__m256i*)p;
+			for(ui j=0;j<len;j+=8,++pp){
+				x=_mm256_shuffle_epi32(*pp,0x4E);
+				y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,1,-1,-1,1,1,-1,-1)),msk);
+				*pp=mai::mlib.mul(mai::mlib.redd(_mm256_add_epi32(x,y)),val);
+			}
+			msk=_mm256_setr_epi32(0,P*2,0,P*2,0,P*2,0,P*2);
+			pp=(__m256i*)p;
+			for(ui j=0;j<len;j+=8,++pp){
+				x=_mm256_shuffle_epi32(*pp,0xB1);
+				y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,-1,1,-1,1,-1,1,-1)),msk);
+				*pp=mai::mlib.redd(_mm256_add_epi32(x,y));
 			}
 		}
+		#else
+		ui len=(1<<n);
+		mi t1,t2;
+		mi* restrict ws=ws0.get();
+		for(ui l=len;l>=2;l>>=1) for(ui j=0,mid=(l>>1);j<len;j+=l){
+			mi restrict *p1=p+j,*p2=p+j+mid,*ww=ws+mid;
+			for(ui i=0;i<mid;++i,++p1,++p2,++ww) t1=*p1,t2=*p2,*p1=t1+t2,*p2=(t1-t2)*(*ww);
+		}
+		#endif
 	}
-	uint sieve::prime_count() const {return pc;}
-	uint sieve::nth_prime(uint k) const {return ps[k-1];}
-	std::vector<uint> sieve::all_primes() const {return ps;}
-	bool sieve::is_prime(uint k) const {if(k<=1) return false;else return !vis[k];}
-	uint sieve::min_prime_factor(uint k) const {return ps[mnf[k]-1];}
-	uint sieve::prime_index(uint k) const {return mnf[k];}
-	int sieve::mu(uint k) const {return _mu[k];}
-	uint sieve::euler_phi(uint k) const {return phi[k];}
-	uint sieve::divisors(uint k) const {return d[k];}
-	uint sieve::divisors_sum(uint k) const {return ds[k];}
-	ll sieve::prefix_sum_mu(uint k) const {return premu[k];}
-	ll sieve::prefix_sum_euler_phi(uint k) const {return preei[k];}
-	ll sieve::prefix_sum_divisors(uint k) const {return pred[k];}
-	ll sieve::prefix_sum_divisors_sum(uint k) const {return preds[k];}
-	sieve::sieve(const sieve &t){
-		rg=t.rg,pc=t.pc,ps=t.ps;
-		if(t.mnf){
-			mnf=std::make_unique<uint[]>(rg+1);
-			std::memcpy(mnf.get(),t.mnf.get(),sizeof(uint)*(rg+1));
-		}
-		if(t.vis){
-			vis=std::make_unique<bool[]>(rg+1);
-			std::memcpy(vis.get(),t.vis.get(),sizeof(bool)*(rg+1));
-		}
-		if(t._mu){
-			_mu=std::make_unique<int[]>(rg+1);
-			std::memcpy(_mu.get(),t._mu.get(),sizeof(int)*(rg+1));
-		}
-		if(t.phi){
-			phi=std::make_unique<uint[]>(rg+1);
-			std::memcpy(phi.get(),t.phi.get(),sizeof(uint)*(rg+1));
-		}
-		if(t.mnfc){
-			mnfc=std::make_unique<uint[]>(rg+1);
-			std::memcpy(mnfc.get(),t.mnfc.get(),sizeof(uint)*(rg+1));
-		}
-		if(t.pksum){
-			pksum=std::make_unique<uint[]>(rg+1);
-			std::memcpy(pksum.get(),t.pksum.get(),sizeof(uint)*(rg+1));
-		}
-		if(t.d){
-			d=std::make_unique<uint[]>(rg+1);
-			std::memcpy(d.get(),t.d.get(),sizeof(uint)*(rg+1));
-		}
-		if(t.ds){
-			ds=std::make_unique<uint[]>(rg+1);
-			std::memcpy(ds.get(),t.ds.get(),sizeof(uint)*(rg+1));
-		}
-		if(t.premu){
-			premu=std::make_unique<ll[]>(rg+1);
-			std::memcpy(premu.get(),t.premu.get(),sizeof(ll)*(rg+1));
-		}
-		if(t.preei){
-			preei=std::make_unique<ll[]>(rg+1);
-			std::memcpy(preei.get(),t.preei.get(),sizeof(ll)*(rg+1));
-		}
-		if(t.pred){
-			pred=std::make_unique<ll[]>(rg+1);
-			std::memcpy(pred.get(),t.pred.get(),sizeof(ll)*(rg+1));
-		}
-		if(t.preds){
-			preds=std::make_unique<ll[]>(rg+1);
-			std::memcpy(preds.get(),t.preds.get(),sizeof(ll)*(rg+1));
-		}
-	}
-	std::vector<std::pair<uint,uint>> sieve::factor(uint k) const {
-		std::vector<std::pair<uint,uint>> ret;
-		while(k>1){
-			uint p=ps[mnf[k]-1],c=0;
-			while((k%p)==0) ++c,k/=p;
-			ret.push_back({p,c});
-		}
-		return ret;
-	}
-	ull basic::gcdll(ull a,ull b){
-		if(!a || !b) return a|b;uint t=__builtin_ctzll(a|b);
-		a>>=__builtin_ctzll(a);
-		do{
-			b>>=__builtin_ctzll(b);
-			if(a>b) std::swap(a,b);
-			b-=a;
-		}while(b);
-		return a<<t;
-	}
-	uint basic::gcd(uint a,uint b){
-		if(!a || !b) return a|b;uint t=__builtin_ctz(a|b);
-		a>>=__builtin_ctz(a);
-		do{
-			b>>=__builtin_ctz(b);
-			if(a>b) std::swap(a,b);
-			b-=a;
-		}while(b);
-		return a<<t;
-	}
-	ll basic::exgcdll(ll a,ll b,ll &x,ll &y){
-		if(!a){x=0;y=1;return b;};ll g=exgcdll(b%a,a,y,x);
-		x-=y*(b/a);return g;
-	}
-	_random_engine random_engine(default_mod);
-	ull factorization::fast_pow_mod(ull a,ull b,ull c){ull ans=1,off=a;while(b){if(b&1) ans=(__uint128_t)ans*off%c;off=(__uint128_t)off*off%c;b>>=1;}return ans;}
-	bool factorization::is_prime(ull k){
-		if(global_sieve_range>=k) return global_sieve.is_prime(k);
-		for(ull c:bases) if(k==c) return true;
-		for(ull c:bases) if(k>=c){
-			ull d=k-1,res=fast_pow_mod(c,d,k);
-			if(res!=1) return false;
-			while(d&1^1){
-				if((d>>=1),((res=fast_pow_mod(c,d,k))==k-1)) break;
-				else if(res!=1){
-					return false;
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::dit(mi* restrict p,ui n){
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui len=(1<<n);
+		mi* restrict ws=ws1.get();
+		if(len<8){
+			mi t1,t2;
+			for(ui l=2;l<=len;l<<=1) for(ui j=0,mid=(l>>1);j<len;j+=l){
+				mi restrict *p1=p+j,*p2=p+j+mid,*ww=ws+mid;
+				for(ui i=0;i<mid;++i,++p1,++p2,++ww) t1=*p1,t2=(*p2)*(*ww),*p1=t1+t2,*p2=t1-t2;
+			}
+			mi co=_inv[len-1];mi* restrict p1=p;
+			for(ui i=0;i<len;++i,++p1) (*p1)*=co;
+		}else{
+			__m256i* pp=(__m256i*)p,x,y,*p1,*p2,*ww;
+			__m256i msk,val;
+			msk=_mm256_setr_epi32(0,P*2,0,P*2,0,P*2,0,P*2);
+			pp=(__m256i*)p;
+			for(ui j=0;j<len;j+=8,++pp){
+				x=_mm256_shuffle_epi32(*pp,0xB1);
+				y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,-1,1,-1,1,-1,1,-1)),msk);
+				*pp=mai::mlib.redd(_mm256_add_epi32(x,y));
+			}
+			val=_mm256_setr_epi32(ws[2].get_val(),ws[3].get_val(),(-ws[2]).get_val(),(-ws[3]).get_val(),
+								  ws[2].get_val(),ws[3].get_val(),(-ws[2]).get_val(),(-ws[3]).get_val());
+			pp=(__m256i*)p;
+			for(ui j=0;j<len;j+=8,++pp){
+				x=_mm256_shuffle_epi32(*pp,0x44);
+				y=_mm256_shuffle_epi32(*pp,0xEE);
+				*pp=mai::mlib.add(x,mai::mlib.mul(y,val));
+			}
+			val=_mm256_setr_epi32(  ws[4].get_val(),   ws[5].get_val(),   ws[6].get_val(),   ws[7].get_val(),
+								  (-ws[4]).get_val(),(-ws[5]).get_val(),(-ws[6]).get_val(),(-ws[7]).get_val());
+			pp=(__m256i*)p;
+			for(ui j=0;j<len;j+=8,++pp){
+				x=_mm256_permute4x64_epi64(*pp,0x44);
+				y=_mm256_permute4x64_epi64(*pp,0xEE);
+				*pp=mai::mlib.add(x,mai::mlib.mul(y,val));
+			}
+			for(ui l=16;l<=len;l<<=1){
+				ui mid=(l>>1);
+				for(ui j=0;j<len;j+=l){
+					p1=(__m256i*)(p+j),p2=(__m256i*)(p+j+mid),ww=(__m256i*)(ws+mid);
+					for(ui i=0;i<mid;i+=8,++p1,++p2,++ww){
+						x=*p1,y=mai::mlib.mul(*p2,*ww);
+						*p1=mai::mlib.add(x,y);
+						*p2=mai::mlib.sub(x,y);
+					}
 				}
 			}
+			__m256i co=_mm256_set1_epi32(_inv[len-1].get_val());
+			pp=(__m256i*)p;
+			for(ui i=0;i<len;i+=8,++pp) (*pp)=mai::mlib.mul(*pp,co);
 		}
-		return true;
+		#else
+		ui len=(1<<n);
+		mi t1,t2;
+		mi* restrict ws=ws1.get();
+		for(ui l=2;l<=len;l<<=1) for(ui j=0,mid=(l>>1);j<len;j+=l){
+			mi restrict *p1=p+j,*p2=p+j+mid,*ww=ws+mid;
+			for(ui i=0;i<mid;++i,++p1,++p2,++ww) t1=*p1,t2=(*p2)*(*ww),*p1=t1+t2,*p2=t1-t2;
+		}
+		mi co=_inv[len-1];mi* restrict p1=p;
+		for(ui i=0;i<len;++i,++p1) (*p1)*=co;
+		#endif
 	}
-	ull factorization::pollard_rho(ull x)
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_mul(mi* restrict src1,mi* restrict src2,mi* restrict dst,ui m)
 	{
-		ull s=0,t=0,c=((ull)random_engine())%(x-1)+1,j=0,k=1,tmp=1;
-		for(k=1;;k<<=1,s=t,tmp=1){
-			for(j=1;j<=k;++j){
-				t=((__uint128_t)t*t+c)%x;
-				tmp=(__uint128_t)tmp*std::abs((ll)t-(ll)s)%x;
-				if((j%127)==0){
-					ull d=basic::gcdll(tmp,x);
-					if(d>1) return d;
-				}
-			}
-			ull d=basic::gcdll(tmp,x);
-			if(d>1) return d;
+		dif(src1,m);
+		dif(src2,m);
+		#if defined (__AVX__) && defined(__AVX2__)
+		if((1<<m)<8){
+			for(ui i=0;i<(1<<m);++i) dst[i]=src1[i]*src2[i];
 		}
-		return 1;
-	}
-	void factorization::_factorize(ull n,uint cnt,std::vector<ull> &pms){
-		if(n<2) return;
-		if(is_prime(n)){
-			for(uint i=0;i<cnt;++i) pms.push_back(n);
-			return;
+		else{
+			__m256i restrict *p1=(__m256i*)src1, *p2=(__m256i*)src2, *p3=(__m256i*)dst;
+			for(ui i=0;i<(1<<m);i+=8,++p1,++p2,++p3) *p3=mai::mlib.mul(*p1,*p2);
 		}
-		ull p=n;
-		while(p>=n) p=pollard_rho(n);uint c=0;
-		while((n%p)==0) n/=p,++c;
-		_factorize(n,cnt,pms),_factorize(p,cnt*c,pms);
+		#else
+		for(ui i=0;i<(1<<m);++i) dst[i]=src1[i]*src2[i];
+		#endif
+		dit(dst,m);
 	}
-	std::vector<std::pair<ull,uint> > factorization::factor(ull k){
-		if(global_sieve_range>=k){
-			auto vv=global_sieve.factor(k);
-			std::vector<std::pair<ull,uint>> v2;
-			for(auto &&v:vv) v2.push_back(std::make_pair(v.first,v.second));
-			return v2;
-		}
-		std::vector<ull> pms;_factorize(k,1,pms);
-		std::sort(pms.begin(),pms.end());std::vector<std::pair<ull,uint>> res;
-		for(uint i=0,j;i<pms.size();i=j){
-			for(j=i;j<pms.size() && pms[j]==pms[i];++j);
-			res.push_back(std::make_pair(pms[i],j-i));
-		}
-		return res;
-	}
-	polynomial_ntt::polynomial_ntt(uint max_conv_size,uint P0,uint G0){init(max_conv_size,P0,G0);}
-	polynomial::polynomial(uint max_conv_size,uint P0):F1(P1),F2(P2),F3(P3){init(max_conv_size,P0);}
-	linear_modulo_preprocessing::linear_modulo_preprocessing(uint maxn,uint P){init(maxn,P);}
-	sieve::sieve(uint maxn,int flag){init(maxn,flag);}
-	sieve global_sieve;uint global_sieve_range=0;int global_sieve_flag=0;
-	void set_global_sieve(uint rg,int flag){
-		global_sieve_range=rg;global_sieve_flag=flag;
-		global_sieve.init(rg,flag);
-	}
-	ull factorization::fast_pow_without_mod(ull a,uint b){ull ans=1,off=a;while(b){if(b&1) ans=ans*off;off=off*off;b>>=1;}return ans;}
-	std::vector<ull> factorization::divisors_set(const std::vector<std::pair<ull,uint>> &decomp){
-		std::vector<ull> res;
-		std::function<void(uint,ull)> calc=[&](uint pos,ull cur)->void{
-			if(!pos){res.push_back(cur);return;}
-			ull pp=1;
-			for(uint i=0;i<=decomp[pos-1].second;++i){
-				calc(pos-1,pp*cur);
-				pp*=decomp[pos-1].first;
-			}
-		};
-		calc(decomp.size(),1);
-		std::sort(res.begin(),res.end());
-		return res;
-	}
-	std::vector<ull> factorization::divisors_set(ull k){return divisors_set(factor(k));}
-	int factorization::moebius(ull k){
-		if(global_sieve_range>=k && (global_sieve_flag&sieve_mu)) return global_sieve.mu(k);
-		return moebius(factor(k));
-	}
-	int factorization::moebius(const std::vector<std::pair<ull,uint>> &decomp){
-		bool g2=false;
-		for(auto &&v:decomp) if(v.second>=2){g2=true;break;}
-		return g2?0:((decomp.size()&1)?(-1):1);
-	}
-	ull factorization::euler_phi(ull k){
-		if(global_sieve_range>=k && (global_sieve_flag&sieve_euler_phi)) return global_sieve.euler_phi(k);
-		return euler_phi(factor(k));
-	}
-	ull factorization::euler_phi(const std::vector<std::pair<ull,uint>> &decomp){
-		ull ans=1;
-		for(auto &&v:decomp) ans*=fast_pow_without_mod(v.first,v.second-1)*(v.first-1);
-		return ans;
-	}
-	ull factorization::sigma(ull k,uint s){return sigma(factor(k),s);}
-	ull factorization::sigma(const std::vector<std::pair<ull,uint>> &decomp,uint s){
-		std::function<ull(ull,uint)> calc=[&](ull a,uint b){ull ans=0,off=1,sc=a;while(b){if(b&1) ans=ans*sc+off;off=off*sc+off;sc=sc*sc;b>>=1;}return ans;};
-		ull ans=1;
-		for(auto &&v:decomp) ans*=calc(fast_pow_without_mod(v.first,s),v.second+1);
-		return ans;
-	}
-	ull modulo::primitive_root(ull k){
-		ull epi=factorization::euler_phi(k);
-		auto v=factorization::factor(epi);std::vector<ull> chk_list;
-		for(auto &vv:v) chk_list.push_back(epi/vv.first);
-		for(ull i=1;;++i) if(basic::gcdll(i,k)==1){
-			bool flg=true;
-			for(ull v:chk_list) if(factorization::fast_pow_mod(i,v,k)==1) flg=false;
-			if(flg) return i;
-		}
-		return 0;
-	}
-	void modulo::BSGS::release(){
-		rev.clear();
-	}
-	modulo::BSGS::BSGS(){}
-	modulo::BSGS::~BSGS(){}
-	modulo::BSGS::BSGS(const BSGS &d):rev(d.rev),P(d.P),x(d.x),sqrtp(d.sqrtp),blk(d.blk),pei(d.pei){}
-	modulo::BSGS::BSGS(ull P0,ull x0){init(P0,x0);}
-	ll modulo::inverse_mod(ll x,ll n){
-		ll x1,x2;basic::exgcdll(x,n,x1,x2);
-		return (x1%(ll)n+n)%n;
-	}
-	void modulo::BSGS::init(ull P0,ull x0){
-		release();pei=factorization::euler_phi(P0);
-		x=x0,P=P0;sqrtp=sqrt(pei)+1;ull invx=inverse_mod(x,P);
-		blk=factorization::fast_pow_mod(invx,sqrtp,P);
-		for(ull i=sqrtp-1,val=factorization::fast_pow_mod(x,sqrtp-1,P);~i;--i,val=(__uint128_t)val*invx%P) rev[val]=i;
-	}
-	ull modulo::BSGS::solve(ull y) const {
-		for(ull i=0;i<sqrtp;++i,y=(__uint128_t)y*blk%P) if(rev.find(y)!=rev.end()) return (rev.find(y)->second)+i*sqrtp;
-		return ~0ull;
-	}
-	std::vector<ull> modulo::naive_cbrt_mod(ull x,ull n){
-		auto dc=factorization::factor(n);
-		std::function<std::pair<std::array<ull,3>,ull>(ull,uint,ull)> calc=[&](ull p0,uint u0,ull x0)->std::pair<std::array<ull,3>,ull>{
-			if(!x0){
-				std::array<ull,3> arr={0ull,~0ull,~0ull};
-				return std::make_pair(arr,factorization::fast_pow_without_mod(p0,(u0+2)/3));
-			}
-			std::array<ull,3> arr={~0ull,~0ull,~0ull};
-			uint c=0,ca=0;
-			while((x0%p0)==0) x0/=p0,++c;
-			if(c%3) return std::make_pair(arr,~0ull);
-			ull res=factorization::fast_pow_without_mod(p0,u0-c),
-				rem=factorization::fast_pow_without_mod(p0,c/3);
-			if(p0==2){
-				ull r=0;
-				for(ull i=2;i<=res;i<<=1){
-					if(((r*r*r)&(i-1))!=(x0&(i-1))) r|=(i>>1);
-				}
-				arr[ca++]=r*rem;
-				return std::make_pair(arr,res*rem);
-			}
-			ull g=primitive_root(res);
-			BSGS b(res,g);
-			ull lg=b.solve(x0),epi=res-res/p0;
-			if(!(~lg)) return std::make_pair(arr,~0ull);
-			for(uint i=0;i<3;++i) if(((i*epi+lg)%3)==0) arr[ca++]=factorization::fast_pow_mod(g,((i*epi+lg)/3),res)*rem;
-			if(!ca) return std::make_pair(arr,~0ull);
-			else return std::make_pair(arr,res*rem);
-		};
-		std::vector<std::pair<std::array<ull,3>,ull>> cres;ull all=1,ans=0;
-		for(auto &&vv:dc){
-			auto v=calc(vv.first,vv.second,x%factorization::fast_pow_without_mod(vv.first,vv.second));
-			if(!(~v.second)) return std::vector<ull>();
-			cres.push_back(v);all*=v.second;
-		}
-		for(auto &vv:cres){
-			ull cur=all/vv.second;
-			ull k=inverse_mod(cur,vv.second);
-			for(uint i=0;i<3;++i) if(~vv.first[i]) vv.first[i]=(__uint128_t)vv.first[i]*k%vv.second*cur;
-		}
-		std::vector<ull> ret;
-		std::function<void(uint,ull)> dfs=[&](uint pos,ull cur)->void{
-			if(!pos){for(ull i=cur;i<n;i+=all) ret.push_back(i);return;}
-			for(uint i=0;i<3 && (~cres[pos-1].first[i]);++i){
-				ull c0=cur+cres[pos-1].first[i];
-				if(c0>=all) c0-=all;
-				dfs(pos-1,c0);
-			}
-		};
-		dfs(cres.size(),0);
-		std::sort(ret.begin(),ret.end());
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::mul(const power_series_ring::poly &a,const power_series_ring::poly &b){
+		ui la=a.size(),lb=b.size();if((!la) && (!lb)) return poly();
+		if(la>mx || lb>mx) throw std::runtime_error("Convolution size out of range!");
+		ui pre_mi_mod=global_mod_mi;
+		if(pre_mi_mod!=P) set_mod_mi(P);
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui pre_mai_mod=global_mod_mai;
+		if(pre_mai_mod!=P) set_mod_mai(P);
+		#endif
+		ui m=0;if(la+lb>2) m=32-__builtin_clz(la+lb-2);
+		std::memcpy(tt[0].get(),&a[0],sizeof(mi)*la);std::memset(tt[0].get()+la,0,sizeof(mi)*((1<<m)-la));
+		std::memcpy(tt[1].get(),&b[0],sizeof(mi)*la);std::memset(tt[1].get()+lb,0,sizeof(mi)*((1<<m)-lb));
+		internal_mul(tt[0].get(),tt[1].get(),tt[2].get(),m);
+		poly ret(la+lb-1);
+		std::memcpy(&ret[0],tt[2].get(),sizeof(mi)*(la+lb-1));
+		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
+		#endif
 		return ret;
 	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_inv(mi* restrict src,mi* restrict dst,mi* restrict tmp,ui len){
+		if(len==1){dst[0]=basic::fast_pow(src[0],P-2);return;}
+		internal_inv(src,dst,tmp,len>>1);
+		std::memcpy(tmp,src,sizeof(mi)*len);std::memset(dst+(len>>1),0,sizeof(mi)*(len>>1)*3);
+		std::memset(tmp+len,0,sizeof(mi)*len);
+		dif(tmp,__builtin_ctz(len<<1));dif(dst,__builtin_ctz(len<<1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<4){
+			mi m2(2);
+			for(ui i=0;i<(len<<1);++i) dst[i]*=(m2-tmp[i]*dst[i]);
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)dst,*p2=(__m256i*)tmp;
+			__m256i m2=_mm256_set1_epi32(mi(2).get_val());
+			for(ui i=0;i<(len<<1);i+=8,++p1,++p2) *p1=mai::mlib.mul(*p1,mai::mlib.sub(m2,mai::mlib.mul(*p1,*p2)));
+		}
+		#else
+		mi m2(2);
+		for(ui i=0;i<(len<<1);++i) dst[i]*=(m2-tmp[i]*dst[i]);
+		#endif
+		dit(dst,__builtin_ctz(len<<1));
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::inv(const power_series_ring::poly &src){
+		ui la=src.size();if(!la) return poly();
+		if(la>mx) throw std::runtime_error("Convolution size out of range!");
+		ui pre_mi_mod=global_mod_mi;
+		if(pre_mi_mod!=P) set_mod_mi(P);
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui pre_mai_mod=global_mod_mai;
+		if(pre_mai_mod!=P) set_mod_mai(P);
+		#endif
+		ui m=0;if(la>1) m=32- __builtin_clz(la-1);
+		std::memcpy(tt[0].get(),&src[0],sizeof(mi)*la);std::memset(tt[0].get()+la,0,sizeof(mi)*((1<<m)-la));
+		internal_inv(tt[0].get(),tt[1].get(),tt[2].get(),(1<<m));
+		poly ret(la);
+		std::memcpy(&ret[0],tt[1].get(),sizeof(mi)*la);
+		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
+		#endif
+		return ret;
+	}
+	power_series_ring::polynomial_kernel::polynomial_kernel_ntt::~polynomial_kernel_ntt(){release();}
 }
 namespace tools
 {
