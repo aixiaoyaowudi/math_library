@@ -2,9 +2,23 @@
 #include <assert.h>
 #include <random>
 #include <iostream>
+#include <thread>
+#include <chrono>
 using namespace math;
 int main(){
 	{
+		std::cerr<<"Start NTT test"<<std::endl;
+		constexpr ui test_size=(1<<22),T=100;
+		power_series_ring::polynomial_kernel::polynomial_kernel_ntt p(test_size,default_mod,3);
+		auto r=p.test(T);
+		std::cerr<<"NTT test of size "<<test_size<<std::endl;
+		std::cerr<<"Dif x"<<T<<" finished in "<<r.first<<"us"<<std::endl;
+		std::cerr<<"Dit x"<<T<<" finished in "<<r.second<<"us"<<std::endl;
+		std::cerr<<"End NTT test"<<std::endl;
+	}
+	std::this_thread::sleep_for(std::chrono::seconds(2));
+	{
+		std::cerr<<"Start mod_int test"<<std::endl;
 		using namespace modulo::mod_int;
 		{
 			constexpr ui  omp_test_mod_mi  = 1000000007,
@@ -136,5 +150,6 @@ int main(){
 			std::cerr<<"mod_int test finished."<<std::endl;
 			#endif
 		}
+		std::cerr<<"End mod_int test"<<std::endl;
 	}
 }

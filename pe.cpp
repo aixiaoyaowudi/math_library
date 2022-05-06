@@ -344,8 +344,8 @@ namespace math
 		for(;ps<len;++ps) dst[ps]=_inv[ps-1]*tmp2[ps-1];
 		#else
 		dst[0]=mi(0);
-		mi restrict *p10=dst+1,*p20=tmp2,*p3=_inv.get();
-		for(ui i=1;i<len;++i,++p1,++p2,++p3) *p10=(*p20)*(*p3);
+		mi restrict *p10=dst+1,*p20=tmp2,*p30=_inv.get();
+		for(ui i=1;i<len;++i,++p10,++p20,++p30) *p10=(*p20)*(*p30);
 		#endif
 	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::ln(const poly &src){
@@ -374,6 +374,31 @@ namespace math
 		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
 		#endif
 		return ret;
+	}
+	std::pair<long long,long long> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
+		ui pre_mi_mod=global_mod_mi;
+		if(pre_mi_mod!=P) set_mod_mi(P);
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui pre_mai_mod=global_mod_mai;
+		if(pre_mai_mod!=P) set_mod_mai(P);
+		#endif
+		std::mt19937 rnd(default_mod);std::uniform_int_distribution<ui> rng{0,default_mod-1};
+		ui len=(fn>>1);
+		for(ui i=0;i<len;++i) tt[0][i]=tt[1][i]=mi(rng(rnd));
+		auto dif_start=std::chrono::system_clock::now();
+		for(ui i=0;i<T;++i) dif(tt[0].get(),__builtin_ctz(len));
+		auto dif_end=std::chrono::system_clock::now();
+		auto dit_start=std::chrono::system_clock::now();
+		for(ui i=0;i<T;++i) dit(tt[0].get(),__builtin_ctz(len));
+		auto dit_end=std::chrono::system_clock::now();
+		for(ui i=0;i<len;++i) assert(tt[0][i].real_val()==tt[1][i].real_val());
+		auto dif_duration=std::chrono::duration_cast<std::chrono::microseconds>(dif_end-dif_start),
+			 dit_duration=std::chrono::duration_cast<std::chrono::microseconds>(dit_end-dit_start);
+		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
+		#endif
+		return std::make_pair(dif_duration.count(),dit_duration.count());
 	}
 }
 namespace tools

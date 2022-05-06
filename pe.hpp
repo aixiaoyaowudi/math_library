@@ -338,6 +338,7 @@ namespace math
 				poly mul(const poly &a,const poly &b);
 				poly inv(const poly &src);
 				poly ln(const poly &src);
+				std::pair<long long,long long> test(ui T);
 			};
 		}
 	}
