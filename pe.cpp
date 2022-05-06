@@ -76,7 +76,7 @@ namespace math
 	}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::release(){
 		ws0.reset();ws1.reset();
-		_inv.reset();
+		_inv.reset();num.reset();
 		fn=fb=mx=0;
 		for(ui i=0;i<5;++i) tt[i].reset();
 	}
@@ -86,9 +86,10 @@ namespace math
 		release();P=P0,G=G0;mx=max_conv_size;
 		fn=1;fb=0;while(fn<(max_conv_size<<1)) fn<<=1,++fb;
 		_inv=create_aligned_array<mi,32>(fn+32);ws0 =create_aligned_array<mi,32>(fn+32);
-		ws1 =create_aligned_array<mi,32>(fn+32);
+		ws1 =create_aligned_array<mi,32>(fn+32);num =create_aligned_array<mi,32>(fn+32);
 		for(ui i=0;i<5;++i)	tt[i] =create_aligned_array<mi,32>(fn+32);
 		_inv[0]=mi(1);for(ui i=2;i<=fn+32;++i) _inv[i-1]=(-mi(P/i))*_inv[(P%i)-1];
+		for(ui i=1;i<=fn+32;++i) num[i-1]=mi(i);
 		mi j0=basic::fast_pow(mi(G),(P-1)/fn),j1=basic::fast_pow(basic::fast_pow(mi(G),(P-2)),(P-1)/fn);
 		for(ui mid=(fn>>1);mid>=1;mid>>=1,j0*=j0,j1*=j1){
 			mi w0(1),w1(1);
@@ -100,11 +101,12 @@ namespace math
 		fn=d.fn,fb=d.fb;P=d.P,G=d.G;mx=d.mx;
 		if(d.mx){
 			_inv=create_aligned_array<mi,32>(fn+32);ws0 =create_aligned_array<mi,32>(fn+32);
-			ws1 =create_aligned_array<mi,32>(fn+32);
+			ws1 =create_aligned_array<mi,32>(fn+32);num =create_aligned_array<mi,32>(fn+32);
 			for(ui i=0;i<5;++i)	tt[i] =create_aligned_array<mi,32>(fn+32);
 			std::memcpy(ws0.get(), d.ws0.get(), sizeof(mi)*(fn+32));
 			std::memcpy(ws1.get(), d.ws1.get(), sizeof(mi)*(fn+32));
 			std::memcpy(_inv.get(),d._inv.get(),sizeof(mi)*(fn+32));
+			std::memcpy(num.get(), d.num.get(), sizeof(mi)*(fn+32));
 		}
 	}
 	power_series_ring::polynomial_kernel::polynomial_kernel_ntt::polynomial_kernel_ntt(){fn=fb=mx=0;}
@@ -295,7 +297,7 @@ namespace math
 		dit(dst,__builtin_ctz(len<<1));
 	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::inv(const power_series_ring::poly &src){
-		ui la=src.size();if(!la) return poly();
+		ui la=src.size();if(!la) throw std::runtime_error("Inversion calculation of empty polynomial!");
 		if(la>mx) throw std::runtime_error("Convolution size out of range!");
 		ui pre_mi_mod=global_mod_mi;
 		if(pre_mi_mod!=P) set_mod_mi(P);
@@ -303,6 +305,13 @@ namespace math
 		ui pre_mai_mod=global_mod_mai;
 		if(pre_mai_mod!=P) set_mod_mai(P);
 		#endif
+		if(!src[0].real_val()){
+			if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
+			#if defined(__AVX__) && defined(__AVX2__)
+			if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
+			#endif
+			throw std::runtime_error("Inversion calculation of polynomial which has constant not equal to 1!");
+		}
 		ui m=0;if(la>1) m=32- __builtin_clz(la-1);
 		std::memcpy(tt[0].get(),&src[0],sizeof(mi)*la);std::memset(tt[0].get()+la,0,sizeof(mi)*((1<<m)-la));
 		internal_inv(tt[0].get(),tt[1].get(),tt[2].get(),(1<<m));
@@ -315,6 +324,57 @@ namespace math
 		return ret;
 	}
 	power_series_ring::polynomial_kernel::polynomial_kernel_ntt::~polynomial_kernel_ntt(){release();}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,ui len){
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui pos=1;__m256i restrict *pp=(__m256i*)tmp1,*iv=(__m256i*)num.get();mi restrict *p1=src+1;
+		for(;pos+8<=len;pos+=8,p1+=8,++pp,++iv) *pp=mai::mlib.mul(_mm256_loadu_si256((__m256i*)p1),*iv);
+		for(;pos<len;++pos) tmp1[pos-1]=src[pos]*num[pos-1];tmp1[len-1]=mi(0);
+		#else
+		mi restrict *p1=src+1,*p2=tmp1,*p3=num.get();
+		for(ui i=1;i<len;++i,++p1,++p2,++p3) *p2=(*p1)*(*p3);
+		tmp1[len-1]=mi(0);
+		#endif
+		internal_inv(src,dst,tmp2,len);
+		std::memset(dst+len,0,sizeof(mi)*len);std::memset(tmp1+len,0,sizeof(mi)*len);
+		internal_mul(tmp1,dst,tmp2,__builtin_ctz(len<<1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui ps=1;__m256i restrict *pp0=(__m256i*)tmp2,*iv0=(__m256i*)_inv.get();mi restrict *p10=dst+1;
+		for(;ps+8<=len;ps+=8,p10+=8,++pp0,++iv0) _mm256_storeu_si256((__m256i*)p10,mai::mlib.mul(*pp0,*iv0));
+		dst[0]=mi(0);
+		for(;ps<len;++ps) dst[ps]=_inv[ps-1]*tmp2[ps-1];
+		#else
+		dst[0]=mi(0);
+		mi restrict *p10=dst+1,*p20=tmp2,*p3=_inv.get();
+		for(ui i=1;i<len;++i,++p1,++p2,++p3) *p10=(*p20)*(*p3);
+		#endif
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::ln(const poly &src){
+		ui la=src.size();if(!la) throw std::runtime_error("Ln calculation of empty polynomial!");
+		if(la>mx) throw std::runtime_error("Convolution size out of range!");
+		ui pre_mi_mod=global_mod_mi;
+		if(pre_mi_mod!=P) set_mod_mi(P);
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui pre_mai_mod=global_mod_mai;
+		if(pre_mai_mod!=P) set_mod_mai(P);
+		#endif
+		if(src[0].real_val()!=1){
+			if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
+			#if defined(__AVX__) && defined(__AVX2__)
+			if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
+			#endif
+			throw std::runtime_error("Ln calculation of polynomial which has constant not equal to 1!");
+		}
+		ui m=0;if(la>1) m=32- __builtin_clz(la-1);
+		std::memcpy(tt[0].get(),&src[0],sizeof(mi)*la);std::memset(tt[0].get()+la,0,sizeof(mi)*((1<<m)-la));
+		internal_ln(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),(1<<m));
+		poly ret(la);
+		std::memcpy(&ret[0],tt[1].get(),sizeof(mi)*la);
+		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
+		#endif
+		return ret;
+	}
 }
 namespace tools
 {

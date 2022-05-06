@@ -53,7 +53,6 @@ namespace math
 	typedef int64_t ll;
 	typedef uint64_t ull;
 	typedef __uint128_t u128;
-	constexpr int default_mod=998244353;
 	template<typename T,size_t align_val>
 	struct aligned_delete {
 		void operator()(T* ptr) const {
@@ -206,6 +205,7 @@ namespace math
 	using modulo::mod_int::set_mod_mli;
 	using modulo::mod_int::global_mod_mi;
 	using modulo::mod_int::global_mod_mli;
+	using modulo::mod_int::default_mod;
 	#if defined(__AVX__) && defined(__AVX2__)
 	using modulo::mod_int::mai;
 	using modulo::mod_int::global_mod_mai;
@@ -320,13 +320,14 @@ namespace math
 			class polynomial_kernel_ntt
 			{
 			private:
-				aligned_array<mi,32> ws0,ws1,_inv,tt[5];ui P,G;
+				aligned_array<mi,32> ws0,ws1,_inv,tt[5],num;ui P,G;
 				ui fn,fb,mx;
 				void release();
 				void dif(mi* restrict arr,ui n);
 				void dit(mi* restrict arr,ui n);
 				void internal_mul(mi* restrict src1,mi* restrict src2,mi* restrict dst,ui m);
 				void internal_inv(mi* restrict src,mi* restrict dst,mi* restrict tmp,ui len);
+				void internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,ui len);
 			public:
 				friend class polynomial_kernel;
 				polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0);
@@ -336,6 +337,7 @@ namespace math
 				~polynomial_kernel_ntt();
 				poly mul(const poly &a,const poly &b);
 				poly inv(const poly &src);
+				poly ln(const poly &src);
 			};
 		}
 	}
