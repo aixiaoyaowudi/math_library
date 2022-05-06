@@ -45,6 +45,7 @@
 #include <ext/pb_ds/hash_policy.hpp>
 #include <array>
 #include <type_traits>
+#include <tuple>
 
 namespace math
 {
@@ -338,7 +339,7 @@ namespace math
 				poly mul(const poly &a,const poly &b);
 				poly inv(const poly &src);
 				poly ln(const poly &src);
-				std::pair<long long,long long> test(ui T);
+				std::tuple<long long,long long,long long,long long> test(ui T);
 			};
 		}
 	}

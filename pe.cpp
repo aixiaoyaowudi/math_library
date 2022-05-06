@@ -394,7 +394,7 @@ namespace math
 		#endif
 		return ret;
 	}
-	std::pair<long long,long long> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
+	std::tuple<long long,long long,long long,long long> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
 		ui pre_mi_mod=global_mod_mi;
 		if(pre_mi_mod!=P) set_mod_mi(P);
 		#if defined(__AVX__) && defined(__AVX2__)
@@ -411,13 +411,22 @@ namespace math
 		for(ui i=0;i<T;++i) dit(tt[0].get(),__builtin_ctz(len));
 		auto dit_end=std::chrono::system_clock::now();
 		for(ui i=0;i<len;++i) assert(tt[0][i].real_val()==tt[1][i].real_val());
+		auto inv_start=std::chrono::system_clock::now();
+		for(ui i=0;i<T;++i) tt[0][0]=mi(1),internal_inv(tt[0].get(),tt[4].get(),tt[2].get(),tt[3].get(),len);
+		auto inv_end=std::chrono::system_clock::now();
+		for(ui i=0;i<len;++i) tt[0][i]=tt[1][i];
+		auto ln_start=std::chrono::system_clock::now();
+		for(ui i=0;i<T;++i) tt[0][0]=mi(1),internal_ln(tt[0].get(),tt[4].get(),tt[2].get(),tt[3].get(),tt[1].get(),len);
+		auto ln_end=std::chrono::system_clock::now();
 		auto dif_duration=std::chrono::duration_cast<std::chrono::microseconds>(dif_end-dif_start),
-			 dit_duration=std::chrono::duration_cast<std::chrono::microseconds>(dit_end-dit_start);
+			 dit_duration=std::chrono::duration_cast<std::chrono::microseconds>(dit_end-dit_start),
+			 inv_duration=std::chrono::duration_cast<std::chrono::microseconds>(inv_end-inv_start),
+			 ln_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_end-ln_start);
 		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
 		#if defined(__AVX__) && defined(__AVX2__)
 		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
 		#endif
-		return std::make_pair(dif_duration.count(),dit_duration.count());
+		return std::make_tuple(dif_duration.count(),dit_duration.count(),inv_duration.count(),ln_duration.count());
 	}
 }
 namespace tools

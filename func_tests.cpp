@@ -15,8 +15,10 @@ int main(){
 		// for(auto &&v:a) printf("%u ",v.real_val());printf("\n");
 		auto r=p.test(T);
 		std::cerr<<"NTT test of size "<<test_size<<std::endl;
-		std::cerr<<"Dif x"<<T<<" finished in "<<r.first<<"us"<<std::endl;
-		std::cerr<<"Dit x"<<T<<" finished in "<<r.second<<"us"<<std::endl;
+		std::cerr<<"Dif x"<<T<<" finished in "<<(std::get<0>(r))<<"us"<<std::endl;
+		std::cerr<<"Dit x"<<T<<" finished in "<<(std::get<1>(r))<<"us"<<std::endl;
+		std::cerr<<"Inv x"<<T<<" finished in "<<(std::get<2>(r))<<"us"<<std::endl;
+		std::cerr<<"Ln  x"<<T<<" finished in "<<(std::get<3>(r))<<"us"<<std::endl;
 		std::cerr<<"End NTT test"<<std::endl;
 	}
 	std::this_thread::sleep_for(std::chrono::seconds(2));
