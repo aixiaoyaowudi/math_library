@@ -274,27 +274,46 @@ namespace math
 		#endif
 		return ret;
 	}
-	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_inv(mi* restrict src,mi* restrict dst,mi* restrict tmp,ui len){
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_inv(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,ui len){//10E(n) x^n->x^{2n}
 		if(len==1){dst[0]=basic::fast_pow(src[0],P-2);return;}
-		internal_inv(src,dst,tmp,len>>1);
-		std::memcpy(tmp,src,sizeof(mi)*len);std::memset(dst+(len>>1),0,sizeof(mi)*(len>>1)*3);
-		std::memset(tmp+len,0,sizeof(mi)*len);
-		dif(tmp,__builtin_ctz(len<<1));dif(dst,__builtin_ctz(len<<1));
+		internal_inv(src,dst,tmp,tmp2,len>>1);
+		std::memcpy(tmp,src,sizeof(mi)*len);std::memcpy(tmp2,dst,sizeof(mi)*(len>>1));std::memset(tmp2+(len>>1),0,sizeof(mi)*(len>>1));
+		std::memset(dst+(len>>1),0,sizeof(mi)*(len>>1));
+		dif(tmp,__builtin_ctz(len));dif(tmp2,__builtin_ctz(len));
 		#if defined(__AVX__) && defined(__AVX2__)
-		if(len<4){
-			mi m2(2);
-			for(ui i=0;i<(len<<1);++i) dst[i]*=(m2-tmp[i]*dst[i]);
+		if(len<=4){
+			for(ui i=0;i<len;++i) tmp[i]*=tmp2[i];
 		}
 		else{
-			__m256i restrict *p1=(__m256i*)dst,*p2=(__m256i*)tmp;
-			__m256i m2=_mm256_set1_epi32(mi(2).get_val());
-			for(ui i=0;i<(len<<1);i+=8,++p1,++p2) *p1=mai::mlib.mul(*p1,mai::mlib.sub(m2,mai::mlib.mul(*p1,*p2)));
+			__m256i restrict *p1=(__m256i*)tmp2,*p2=(__m256i*)tmp;
+			for(ui i=0;i<len;i+=8,++p1,++p2) (*p2)=mai::mlib.mul((*p1),(*p2));
 		}
 		#else
-		mi m2(2);
-		for(ui i=0;i<(len<<1);++i) dst[i]*=(m2-tmp[i]*dst[i]);
+		for(ui i=0;i<len;++i) tmp[i]*=tmp2[i];
 		#endif
-		dit(dst,__builtin_ctz(len<<1));
+		dit(tmp,__builtin_ctz(len));std::memset(tmp,0,sizeof(mi)*(len>>1));dif(tmp,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=4){
+			for(ui i=0;i<len;++i) tmp[i]*=tmp2[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp2,*p2=(__m256i*)tmp;
+			for(ui i=0;i<len;i+=8,++p1,++p2) (*p2)=mai::mlib.mul((*p1),(*p2));
+		}
+		#else
+		for(ui i=0;i<len;++i) tmp[i]*=tmp2[i];
+		#endif
+		dit(tmp,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			for(ui i=(len>>1);i<len;++i) dst[i]=(-tmp[i]);
+		}else{
+			__m256i restrict *p1=(__m256i*)(tmp+(len>>1)),*p2=(__m256i*)(dst+(len>>1));
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2) (*p2)=mai::mlib.sub(_mm256_setzero_si256(),(*p1));
+		}
+		#else
+		for(ui i=(len>>1);i<len;++i) dst[i]=(-tmp[i]);
+		#endif
 	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::inv(const power_series_ring::poly &src){
 		ui la=src.size();if(!la) throw std::runtime_error("Inversion calculation of empty polynomial!");
@@ -314,7 +333,7 @@ namespace math
 		}
 		ui m=0;if(la>1) m=32- __builtin_clz(la-1);
 		std::memcpy(tt[0].get(),&src[0],sizeof(mi)*la);std::memset(tt[0].get()+la,0,sizeof(mi)*((1<<m)-la));
-		internal_inv(tt[0].get(),tt[1].get(),tt[2].get(),(1<<m));
+		internal_inv(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),(1<<m));
 		poly ret(la);
 		std::memcpy(&ret[0],tt[1].get(),sizeof(mi)*la);
 		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
@@ -324,7 +343,7 @@ namespace math
 		return ret;
 	}
 	power_series_ring::polynomial_kernel::polynomial_kernel_ntt::~polynomial_kernel_ntt(){release();}
-	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,ui len){
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,mi* restrict tmp3,ui len){
 		#if defined(__AVX__) && defined(__AVX2__)
 		ui pos=1;__m256i restrict *pp=(__m256i*)tmp1,*iv=(__m256i*)num.get();mi restrict *p1=src+1;
 		for(;pos+8<=len;pos+=8,p1+=8,++pp,++iv) *pp=mai::mlib.mul(_mm256_loadu_si256((__m256i*)p1),*iv);
@@ -334,7 +353,7 @@ namespace math
 		for(ui i=1;i<len;++i,++p1,++p2,++p3) *p2=(*p1)*(*p3);
 		tmp1[len-1]=mi(0);
 		#endif
-		internal_inv(src,dst,tmp2,len);
+		internal_inv(src,dst,tmp2,tmp3,len);
 		std::memset(dst+len,0,sizeof(mi)*len);std::memset(tmp1+len,0,sizeof(mi)*len);
 		internal_mul(tmp1,dst,tmp2,__builtin_ctz(len<<1));
 		#if defined(__AVX__) && defined(__AVX2__)
@@ -366,7 +385,7 @@ namespace math
 		}
 		ui m=0;if(la>1) m=32- __builtin_clz(la-1);
 		std::memcpy(tt[0].get(),&src[0],sizeof(mi)*la);std::memset(tt[0].get()+la,0,sizeof(mi)*((1<<m)-la));
-		internal_ln(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),(1<<m));
+		internal_ln(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),(1<<m));
 		poly ret(la);
 		std::memcpy(&ret[0],tt[1].get(),sizeof(mi)*la);
 		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);

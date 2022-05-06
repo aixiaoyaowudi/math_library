@@ -163,7 +163,7 @@ namespace math
 				#endif
 				__m256i val;
 				void init(__m256i a){val=mlib.mul(a,mlib.NP);}
-				montgomery_mm256_int(){val=_mm256_set1_epi32(0);} montgomery_mm256_int(const montgomery_mm256_int &a):val(a.val){} montgomery_mm256_int(__m256i v):val(mlib.mul(v,mlib.NP)){}
+				montgomery_mm256_int(){val=_mm256_setzero_si256();} montgomery_mm256_int(const montgomery_mm256_int &a):val(a.val){} montgomery_mm256_int(__m256i v):val(mlib.mul(v,mlib.NP)){}
 				montgomery_mm256_int(ui v){init(_mm256_set1_epi32(v));}
 				montgomery_mm256_int& operator=(const montgomery_mm256_int &b) {val=b.val;return *this;}
 				montgomery_mm256_int& operator+=(const montgomery_mm256_int &b) {val=mlib.add(val,b.val);return *this;}
@@ -326,8 +326,8 @@ namespace math
 				void dif(mi* restrict arr,ui n);
 				void dit(mi* restrict arr,ui n);
 				void internal_mul(mi* restrict src1,mi* restrict src2,mi* restrict dst,ui m);
-				void internal_inv(mi* restrict src,mi* restrict dst,mi* restrict tmp,ui len);
-				void internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,ui len);
+				void internal_inv(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,ui len);
+				void internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,mi* restrict tmp3,ui len);
 			public:
 				friend class polynomial_kernel;
 				polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0);

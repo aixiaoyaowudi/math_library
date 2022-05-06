@@ -10,6 +10,9 @@ int main(){
 		std::cerr<<"Start NTT test"<<std::endl;
 		constexpr ui test_size=(1<<22),T=100;
 		power_series_ring::polynomial_kernel::polynomial_kernel_ntt p(test_size,default_mod,3);
+		// power_series_ring::poly a={1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
+		// a=p.ln(a);
+		// for(auto &&v:a) printf("%u ",v.real_val());printf("\n");
 		auto r=p.test(T);
 		std::cerr<<"NTT test of size "<<test_size<<std::endl;
 		std::cerr<<"Dif x"<<T<<" finished in "<<r.first<<"us"<<std::endl;
