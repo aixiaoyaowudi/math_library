@@ -78,16 +78,17 @@ namespace math
 		ws0.reset();ws1.reset();
 		_inv.reset();num.reset();
 		fn=fb=mx=0;
-		for(ui i=0;i<5;++i) tt[i].reset();
+		for(ui i=0;i<tmp_size;++i) tt[i].reset();
 	}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::init(ui max_conv_size,ui P0,ui G0){
+		max_conv_size=std::max(max_conv_size,16u);
 		ui pre_mi_mod=global_mod_mi;
 		if(pre_mi_mod!=P0) set_mod_mi(P0);
 		release();P=P0,G=G0;mx=max_conv_size;
 		fn=1;fb=0;while(fn<(max_conv_size<<1)) fn<<=1,++fb;
 		_inv=create_aligned_array<mi,32>(fn+32);ws0 =create_aligned_array<mi,32>(fn+32);
 		ws1 =create_aligned_array<mi,32>(fn+32);num =create_aligned_array<mi,32>(fn+32);
-		for(ui i=0;i<5;++i)	tt[i] =create_aligned_array<mi,32>(fn+32);
+		for(ui i=0;i<tmp_size;++i)	tt[i] =create_aligned_array<mi,32>(fn+32);
 		_inv[0]=mi(1);for(ui i=2;i<=fn+32;++i) _inv[i-1]=(-mi(P/i))*_inv[(P%i)-1];
 		for(ui i=1;i<=fn+32;++i) num[i-1]=mi(i);
 		mi j0=basic::fast_pow(mi(G),(P-1)/fn),j1=basic::fast_pow(basic::fast_pow(mi(G),(P-2)),(P-1)/fn);
@@ -102,7 +103,7 @@ namespace math
 		if(d.mx){
 			_inv=create_aligned_array<mi,32>(fn+32);ws0 =create_aligned_array<mi,32>(fn+32);
 			ws1 =create_aligned_array<mi,32>(fn+32);num =create_aligned_array<mi,32>(fn+32);
-			for(ui i=0;i<5;++i)	tt[i] =create_aligned_array<mi,32>(fn+32);
+			for(ui i=0;i<tmp_size;++i)	tt[i] =create_aligned_array<mi,32>(fn+32);
 			std::memcpy(ws0.get(), d.ws0.get(), sizeof(mi)*(fn+32));
 			std::memcpy(ws1.get(), d.ws1.get(), sizeof(mi)*(fn+32));
 			std::memcpy(_inv.get(),d._inv.get(),sizeof(mi)*(fn+32));
@@ -315,9 +316,105 @@ namespace math
 		for(ui i=(len>>1);i<len;++i) dst[i]=(-tmp[i]);
 		#endif
 	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::dif_xni(mi* restrict arr,ui n){
+		#if defined(__AVX__) && defined(__AVX2__)
+		mi* restrict ws=ws0.get();
+		ui len=(1<<n);
+		if(len<=4){
+			for(ui i=0;i<len;++i) arr[i]*=ws[(len<<1)+i];
+		}else{
+			__m256i restrict *p1=(__m256i*)arr,*p2=(__m256i*)(ws+(len<<1));
+			for(ui i=0;i<len;i+=8,++p1,++p2) *p1=mai::mlib.mul(*p1,*p2);
+		}
+		#else
+		mi* restrict ws=ws0.get();
+		ui len=(1<<n);
+		for(ui i=0;i<len;++i) arr[i]*=ws[(len<<1)+i];
+		#endif
+		dif(arr,n);
+	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::dit_xni(mi* restrict arr,ui n){
+		dit(arr,n);
+		#if defined(__AVX__) && defined(__AVX2__)
+		mi* restrict ws=ws1.get();
+		ui len=(1<<n);
+		if(len<=4){
+			for(ui i=0;i<len;++i) arr[i]*=ws[(len<<1)+i];
+		}else{
+			__m256i restrict *p1=(__m256i*)arr,*p2=(__m256i*)(ws+(len<<1));
+			for(ui i=0;i<len;i+=8,++p1,++p2) *p1=mai::mlib.mul(*p1,*p2);
+		}
+		#else
+		mi* restrict ws=ws1.get();
+		ui len=(1<<n);
+		for(ui i=0;i<len;++i) arr[i]*=ws[(len<<1)+i];
+		#endif
+	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_inv_faster(mi* restrict src,mi* restrict dst,
+		mi* restrict tmp,mi* restrict tmp2,mi* restrict tmp3,ui len){//9E(n) x^n->x^{2n}
+		if(len==1){dst[0]=basic::fast_pow(src[0],P-2);return;}
+		internal_inv_faster(src,dst,tmp,tmp2,tmp3,len>>1);
+		std::memcpy(tmp,src,sizeof(mi)*(len>>1));std::memcpy(tmp2,dst,sizeof(mi)*(len>>1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			mi mip=ws0[3];
+			for(ui i=0;i<(len>>1);++i) tmp[i]+=mip*src[i+(len>>1)];
+		}
+		else{
+			__m256i mip=_mm256_set1_epi32(ws0[3].get_val());
+			__m256i restrict *p1=(__m256i*)(src+(len>>1)),*p2=(__m256i*)tmp;
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2) (*p2)=mai::mlib.add((*p2),mai::mlib.mul((*p1),mip));
+		}
+		#else
+		mi mip0=ws0[3];
+		for(ui i=0;i<(len>>1);++i) tmp[i]+=mip0*src[i+(len>>1)];
+		#endif
+		dif_xni(tmp,__builtin_ctz(len>>1));
+		dif_xni(tmp2,__builtin_ctz(len>>1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			for(ui i=0;i<(len>>1);++i) tmp[i]*=tmp2[i]*tmp2[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp2,*p2=(__m256i*)tmp;
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2) (*p2)=mai::mlib.mul((*p2),mai::mlib.mul((*p1),(*p1)));
+		}
+		#else
+		for(ui i=0;i<(len>>1);++i) tmp[i]*=tmp2[i]*tmp2[i];
+		#endif
+		dit_xni(tmp,__builtin_ctz(len>>1));
+		std::memcpy(tmp2,src,sizeof(mi)*len);std::memcpy(tmp3,dst,sizeof(mi)*(len>>1));std::memset(tmp3+(len>>1),0,sizeof(mi)*(len>>1));
+		dif(tmp2,__builtin_ctz(len));dif(tmp3,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			for(ui i=0;i<len;++i) tmp2[i]*=tmp3[i]*tmp3[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp3,*p2=(__m256i*)tmp2;
+			for(ui i=0;i<len;i+=8,++p1,++p2) (*p2)=mai::mlib.mul((*p2),mai::mlib.mul((*p1),(*p1)));
+		}
+		#else
+		for(ui i=0;i<len;++i) tmp2[i]*=tmp3[i]*tmp3[i];
+		#endif
+		dit(tmp2,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			mi mip=ws0[3],iv2=_inv[1];
+			for(ui i=0;i<(len>>1);++i) dst[i+(len>>1)]=((tmp[i]+tmp2[i]-dst[i]-dst[i])*mip-tmp2[i+(len>>1)])*iv2;
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp,*p2=(__m256i*)(tmp2+(len>>1)),*p3=(__m256i*)(tmp2),*p4=(__m256i*)(dst+(len>>1)),*p5=(__m256i*)(dst);
+			__m256i mip=_mm256_set1_epi32(ws0[3].get_val()),iv2=_mm256_set1_epi32(_inv[1].get_val());
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2,++p3,++p4,++p5) (*p4)=mai::mlib.mul(mai::mlib.sub(mai::mlib.mul(mai::mlib.sub(mai::mlib.add((*p1),(*p3)),mai::mlib.add((*p5),(*p5))),mip),(*p2)),iv2);
+		}
+		#else
+		mi mip=ws0[3],iv2=_inv[1];
+		for(ui i=0;i<(len>>1);++i) dst[i+(len>>1)]=((tmp[i]+tmp2[i]-dst[i]-dst[i])*mip-tmp2[i+(len>>1)])*iv2;
+		#endif
+	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::inv(const power_series_ring::poly &src){
 		ui la=src.size();if(!la) throw std::runtime_error("Inversion calculation of empty polynomial!");
-		if(la>mx) throw std::runtime_error("Convolution size out of range!");
+		if((la*4)>fn) throw std::runtime_error("Convolution size out of range!");
 		ui pre_mi_mod=global_mod_mi;
 		if(pre_mi_mod!=P) set_mod_mi(P);
 		#if defined(__AVX__) && defined(__AVX2__)
@@ -333,7 +430,8 @@ namespace math
 		}
 		ui m=0;if(la>1) m=32- __builtin_clz(la-1);
 		std::memcpy(tt[0].get(),&src[0],sizeof(mi)*la);std::memset(tt[0].get()+la,0,sizeof(mi)*((1<<m)-la));
-		internal_inv(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),(1<<m));
+		// internal_inv(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),(1<<m));
+		internal_inv_faster(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),(1<<m));
 		poly ret(la);
 		std::memcpy(&ret[0],tt[1].get(),sizeof(mi)*la);
 		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
@@ -394,7 +492,7 @@ namespace math
 		#endif
 		return ret;
 	}
-	std::tuple<long long,long long,long long,long long> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
+	std::tuple<long long,long long,long long,long long,long long> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
 		ui pre_mi_mod=global_mod_mi;
 		if(pre_mi_mod!=P) set_mod_mi(P);
 		#if defined(__AVX__) && defined(__AVX2__)
@@ -402,31 +500,37 @@ namespace math
 		if(pre_mai_mod!=P) set_mod_mai(P);
 		#endif
 		std::mt19937 rnd(default_mod);std::uniform_int_distribution<ui> rng{0,default_mod-1};
-		ui len=(fn>>1);
-		for(ui i=0;i<len;++i) tt[0][i]=tt[1][i]=mi(rng(rnd));
+		ui len=(fn>>2);
+		for(ui i=0;i<len;++i) tt[0][i]=tt[tmp_size-1][i]=mi(rng(rnd));
 		auto dif_start=std::chrono::system_clock::now();
 		for(ui i=0;i<T;++i) dif(tt[0].get(),__builtin_ctz(len));
 		auto dif_end=std::chrono::system_clock::now();
 		auto dit_start=std::chrono::system_clock::now();
 		for(ui i=0;i<T;++i) dit(tt[0].get(),__builtin_ctz(len));
 		auto dit_end=std::chrono::system_clock::now();
-		for(ui i=0;i<len;++i) assert(tt[0][i].real_val()==tt[1][i].real_val());
+		for(ui i=0;i<len;++i) assert(tt[0][i].real_val()==tt[tmp_size-1][i].real_val());
+		tt[0][0]=mi(1);tt[tmp_size-1][0]=mi(1);
 		auto inv_start=std::chrono::system_clock::now();
-		for(ui i=0;i<T;++i) tt[0][0]=mi(1),internal_inv(tt[0].get(),tt[4].get(),tt[2].get(),tt[3].get(),len);
+		for(ui i=0;i<T;++i) internal_inv(tt[i&1].get(),tt[i&1^1].get(),tt[2].get(),tt[3].get(),len);
 		auto inv_end=std::chrono::system_clock::now();
-		for(ui i=0;i<len;++i) tt[0][i]=tt[1][i];
+		for(ui i=0;i<len;++i) assert(tt[0][i].real_val()==tt[tmp_size-1][i].real_val());
+		auto inv_faster_start=std::chrono::system_clock::now();
+		for(ui i=0;i<T;++i) internal_inv_faster(tt[i&1].get(),tt[i&1^1].get(),tt[2].get(),tt[3].get(),tt[4].get(),len);
+		auto inv_faster_end=std::chrono::system_clock::now();
+		for(ui i=0;i<len;++i) assert(tt[0][i].real_val()==tt[tmp_size-1][i].real_val());
 		auto ln_start=std::chrono::system_clock::now();
-		for(ui i=0;i<T;++i) tt[0][0]=mi(1),internal_ln(tt[0].get(),tt[4].get(),tt[2].get(),tt[3].get(),tt[1].get(),len);
+		for(ui i=0;i<T;++i) tt[0][0]=mi(1),internal_ln(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),len);
 		auto ln_end=std::chrono::system_clock::now();
 		auto dif_duration=std::chrono::duration_cast<std::chrono::microseconds>(dif_end-dif_start),
 			 dit_duration=std::chrono::duration_cast<std::chrono::microseconds>(dit_end-dit_start),
 			 inv_duration=std::chrono::duration_cast<std::chrono::microseconds>(inv_end-inv_start),
+			 inv_faster_duration=std::chrono::duration_cast<std::chrono::microseconds>(inv_faster_end-inv_faster_start),
 			 ln_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_end-ln_start);
 		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
 		#if defined(__AVX__) && defined(__AVX2__)
 		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
 		#endif
-		return std::make_tuple(dif_duration.count(),dit_duration.count(),inv_duration.count(),ln_duration.count());
+		return std::make_tuple(dif_duration.count(),dit_duration.count(),inv_duration.count(),inv_faster_duration.count(),ln_duration.count());
 	}
 }
 namespace tools

@@ -321,13 +321,17 @@ namespace math
 			class polynomial_kernel_ntt
 			{
 			private:
-				aligned_array<mi,32> ws0,ws1,_inv,tt[5],num;ui P,G;
+				static constexpr ui tmp_size=7;
+				aligned_array<mi,32> ws0,ws1,_inv,tt[tmp_size],num;ui P,G;
 				ui fn,fb,mx;
 				void release();
 				void dif(mi* restrict arr,ui n);
 				void dit(mi* restrict arr,ui n);
+				void dif_xni(mi* restrict arr,ui n);
+				void dit_xni(mi* restrict arr,ui n);
 				void internal_mul(mi* restrict src1,mi* restrict src2,mi* restrict dst,ui m);
 				void internal_inv(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,ui len);
+				void internal_inv_faster(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,mi* restrict tmp3,ui len);
 				void internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,mi* restrict tmp3,ui len);
 			public:
 				friend class polynomial_kernel;
@@ -339,7 +343,7 @@ namespace math
 				poly mul(const poly &a,const poly &b);
 				poly inv(const poly &src);
 				poly ln(const poly &src);
-				std::tuple<long long,long long,long long,long long> test(ui T);
+				std::tuple<long long,long long,long long,long long,long long> test(ui T);
 			};
 		}
 	}
