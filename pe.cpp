@@ -465,9 +465,117 @@ namespace math
 		for(ui i=1;i<len;++i,++p10,++p20,++p30) *p10=(*p20)*(*p30);
 		#endif
 	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_ln_faster(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,
+																						 mi* restrict tmp3,mi* restrict tmp4,ui len){//12E(n)
+		if(len<4){internal_ln(src,dst,tmp1,tmp2,tmp3,len);return;}
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui pos=1;__m256i restrict *pp=(__m256i*)tmp1,*iv=(__m256i*)num.get();mi restrict *p1=src+1;
+		for(;pos+8<=len;pos+=8,p1+=8,++pp,++iv) *pp=mai::mlib.mul(_mm256_loadu_si256((__m256i*)p1),*iv);
+		for(;pos<len;++pos) tmp1[pos-1]=src[pos]*num[pos-1];tmp1[len-1]=mi(0);
+		#else
+		mi restrict *p1=src+1,*p2=tmp1,*p3=num.get();
+		for(ui i=1;i<len;++i,++p1,++p2,++p3) *p2=(*p1)*(*p3);
+		tmp1[len-1]=mi(0);
+		#endif
+		internal_inv_faster(src,dst,tmp2,tmp3,tmp4,(len>>1));//tmp4=F_{n/2}(g0 mod x^{n/4})
+		std::memcpy(dst,dst+(len>>2),sizeof(mi)*(len>>2));std::memset(dst+(len>>2),0,sizeof(mi)*(len>>2));
+		dif(dst,__builtin_ctz(len>>1));
+		std::memcpy(tmp2,tmp1+(len>>2),sizeof(mi)*(len>>2));std::memset(tmp2+(len>>2),0,sizeof(mi)*(len>>2));
+		dif(tmp2,__builtin_ctz(len>>1));
+		std::memset(tmp1+(len>>2),0,sizeof(mi)*(len>>2));
+		dif(tmp1,__builtin_ctz(len>>1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			for(ui i=0;i<(len>>1);++i) tmp2[i]=(tmp2[i]*tmp4[i]+dst[i]*tmp1[i]),tmp1[i]*=tmp4[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp2,*p2=(__m256i*)tmp4,*p3=(__m256i*)dst,*p4=(__m256i*)tmp1;
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2,++p3,++p4) (*p1)=mai::mlib.add(mai::mlib.mul((*p1),(*p2)),mai::mlib.mul((*p3),(*p4))),(*p4)=mai::mlib.mul((*p2),(*p4));
+		}
+		#else
+		for(ui i=0;i<(len>>1);++i) tmp2[i]=(tmp2[i]*tmp4[i]+dst[i]*tmp1[i]),tmp1[i]*=tmp4[i];
+		#endif
+		dit(tmp1,__builtin_ctz(len>>1));dit(tmp2,__builtin_ctz(len>>1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=16){
+			for(ui i=0;i<(len>>2);++i) tmp1[i+(len>>2)]+=tmp2[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)(tmp1+(len>>2)),*p2=(__m256i*)tmp2;
+			for(ui i=0;i<(len>>2);i+=8,++p1,++p2) (*p1)=mai::mlib.add((*p1),(*p2));
+		}
+		#else
+		for(ui i=0;i<(len>>2);++i) tmp1[i+(len>>2)]+=tmp2[i];
+		#endif
+		std::memcpy(tmp2,tmp1,sizeof(mi)*(len>>1));
+		std::memset(tmp2+(len>>1),0,sizeof(mi)*(len>>1));
+		dif(tmp2,__builtin_ctz(len));std::memcpy(tmp3,src,sizeof(mi)*len);
+		dif(tmp3,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=4){
+			for(ui i=0;i<len;++i) tmp3[i]*=tmp2[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)(tmp3),*p2=(__m256i*)tmp2;
+			for(ui i=0;i<len;i+=8,++p1,++p2) (*p1)=mai::mlib.mul((*p1),(*p2));
+		}
+		#else
+		for(ui i=0;i<len;++i) tmp3[i]*=tmp2[i];
+		#endif
+		dit(tmp3,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			for(ui i=0;i<(len>>1);++i) tmp3[i+(len>>1)]=tmp1[i+(len>>1)]-tmp3[i+(len>>1)];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)(tmp3+(len>>1)),*p2=(__m256i*)(tmp1+(len>>1));
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2) (*p1)=mai::mlib.sub((*p2),(*p1));
+		}
+		#else
+		for(ui i=0;i<(len>>1);++i) tmp3[i+(len>>1)]=tmp1[i+(len>>1)]-tmp3[i+(len>>1)];
+		#endif
+		std::memcpy(tmp3,tmp3+(len>>2)*3,sizeof(mi)*(len>>2));std::memset(tmp3+(len>>2),0,sizeof(mi)*(len>>2));
+		std::memcpy(tmp2,tmp3+(len>>1),sizeof(mi)*(len>>2));std::memset(tmp2+(len>>2),0,sizeof(mi)*(len>>2));
+		dif(tmp3,__builtin_ctz(len>>1));dif(tmp2,__builtin_ctz(len>>1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			for(ui i=0;i<(len>>1);++i) tmp3[i]=(tmp3[i]*tmp4[i]+dst[i]*tmp2[i]),tmp2[i]*=tmp4[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp3,*p2=(__m256i*)tmp4,*p3=(__m256i*)dst,*p4=(__m256i*)tmp2;
+			__m256i tt;
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2,++p3,++p4) (*p1)=mai::mlib.add(mai::mlib.mul((*p1),(*p2)),mai::mlib.mul((*p3),(*p4))),(*p4)=mai::mlib.mul((*p2),(*p4));
+		}
+		#else
+		for(ui i=0;i<(len>>1);++i) tmp3[i]=(tmp3[i]*tmp4[i]+dst[i]*tmp2[i]),tmp2[i]*=tmp4[i];
+		#endif
+		dit(tmp3,__builtin_ctz(len>>1));dit(tmp2,__builtin_ctz(len>>1));
+		std::memcpy(tmp1+(len>>1),tmp2,sizeof(mi)*(len>>2));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=16){
+			for(ui i=0;i<(len>>2);++i) tmp1[i+(len>>2)*3]=tmp2[i+(len>>2)]+tmp3[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)(tmp1+(len>>2)*3),*p2=(__m256i*)(tmp2+(len>>2)),*p3=(__m256i*)(tmp3);
+			for(ui i=0;i<(len>>2);i+=8,++p1,++p2,++p3) (*p1)=mai::mlib.add((*p2),(*p3));
+		}
+		#else
+		for(ui i=0;i<(len>>2);++i) tmp1[i+(len>>2)*3]=tmp2[i+(len>>2)]+tmp3[i];
+		#endif
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui ps=1;__m256i restrict *pp0=(__m256i*)tmp1,*iv0=(__m256i*)_inv.get();mi restrict *p10=dst+1;
+		for(;ps+8<=len;ps+=8,p10+=8,++pp0,++iv0) _mm256_storeu_si256((__m256i*)p10,mai::mlib.mul(*pp0,*iv0));
+		dst[0]=mi(0);
+		for(;ps<len;++ps) dst[ps]=_inv[ps-1]*tmp1[ps-1];
+		#else
+		dst[0]=mi(0);
+		mi restrict *p10=dst+1,*p20=tmp1,*p30=_inv.get();
+		for(ui i=1;i<len;++i,++p10,++p20,++p30) *p10=(*p20)*(*p30);
+		#endif
+	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::ln(const poly &src){
 		ui la=src.size();if(!la) throw std::runtime_error("Ln calculation of empty polynomial!");
-		if(la>mx) throw std::runtime_error("Convolution size out of range!");
+		if((la*2)>fn) throw std::runtime_error("Convolution size out of range!");
 		ui pre_mi_mod=global_mod_mi;
 		if(pre_mi_mod!=P) set_mod_mi(P);
 		#if defined(__AVX__) && defined(__AVX2__)
@@ -483,7 +591,8 @@ namespace math
 		}
 		ui m=0;if(la>1) m=32- __builtin_clz(la-1);
 		std::memcpy(tt[0].get(),&src[0],sizeof(mi)*la);std::memset(tt[0].get()+la,0,sizeof(mi)*((1<<m)-la));
-		internal_ln(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),(1<<m));
+		// internal_ln(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),(1<<m));
+		internal_ln_faster(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),tt[5].get(),(1<<m));
 		poly ret(la);
 		std::memcpy(&ret[0],tt[1].get(),sizeof(mi)*la);
 		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
@@ -492,7 +601,7 @@ namespace math
 		#endif
 		return ret;
 	}
-	std::tuple<long long,long long,long long,long long,long long> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
+	std::array<long long,6> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
 		ui pre_mi_mod=global_mod_mi;
 		if(pre_mi_mod!=P) set_mod_mi(P);
 		#if defined(__AVX__) && defined(__AVX2__)
@@ -521,16 +630,20 @@ namespace math
 		auto ln_start=std::chrono::system_clock::now();
 		for(ui i=0;i<T;++i) tt[0][0]=mi(1),internal_ln(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),len);
 		auto ln_end=std::chrono::system_clock::now();
+		auto ln_faster_start=std::chrono::system_clock::now();
+		for(ui i=0;i<T;++i) tt[0][0]=mi(1),internal_ln_faster(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),tt[5].get(),len);
+		auto ln_faster_end=std::chrono::system_clock::now();
 		auto dif_duration=std::chrono::duration_cast<std::chrono::microseconds>(dif_end-dif_start),
 			 dit_duration=std::chrono::duration_cast<std::chrono::microseconds>(dit_end-dit_start),
 			 inv_duration=std::chrono::duration_cast<std::chrono::microseconds>(inv_end-inv_start),
 			 inv_faster_duration=std::chrono::duration_cast<std::chrono::microseconds>(inv_faster_end-inv_faster_start),
-			 ln_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_end-ln_start);
+			 ln_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_end-ln_start),
+			 ln_faster_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_faster_end-ln_faster_start);
 		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
 		#if defined(__AVX__) && defined(__AVX2__)
 		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
 		#endif
-		return std::make_tuple(dif_duration.count(),dit_duration.count(),inv_duration.count(),inv_faster_duration.count(),ln_duration.count());
+		return {dif_duration.count(),dit_duration.count(),inv_duration.count(),inv_faster_duration.count(),ln_duration.count(),ln_faster_duration.count()};
 	}
 }
 namespace tools

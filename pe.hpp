@@ -333,6 +333,7 @@ namespace math
 				void internal_inv(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,ui len);
 				void internal_inv_faster(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,mi* restrict tmp3,ui len);
 				void internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,mi* restrict tmp3,ui len);
+				void internal_ln_faster(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,mi* restrict tmp3,mi* restrict tmp4,ui len);
 			public:
 				friend class polynomial_kernel;
 				polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0);
@@ -343,7 +344,7 @@ namespace math
 				poly mul(const poly &a,const poly &b);
 				poly inv(const poly &src);
 				poly ln(const poly &src);
-				std::tuple<long long,long long,long long,long long,long long> test(ui T);
+				std::array<long long,6> test(ui T);
 			};
 		}
 	}
