@@ -601,7 +601,204 @@ namespace math
 		#endif
 		return ret;
 	}
-	std::array<long long,6> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_exp(mi* restrict src,mi* restrict dst,mi* restrict gn,mi* restrict gxni,
+																				   mi* restrict h,mi* restrict tmp1,mi* restrict tmp2,mi* restrict tmp3,ui len,bool calc_h){
+		if(len==1){dst[0]=mi(1);return;}
+		else if(len==2){dst[0]=mi(1);dst[1]=src[1];gn[0]=dst[0]+dst[1],gn[1]=dst[0]-dst[1];gxni[0]=dst[1]*ws0[3]+dst[0];h[0]=mi(1);h[1]=-dst[1];return;}
+		internal_exp(src,dst,gn,gxni,h,tmp1,tmp2,tmp3,(len>>1),true);
+		#if defined(__AVX__) && defined(__AVX2__)
+		{
+			ui pos=1;__m256i restrict *pp=(__m256i*)tmp1,*iv=(__m256i*)num.get();mi restrict *p1=src+1;
+			for(;pos+8<=(len>>1);pos+=8,p1+=8,++pp,++iv) *pp=mai::mlib.mul(_mm256_loadu_si256((__m256i*)p1),*iv);
+			for(;pos<(len>>1);++pos) tmp1[pos-1]=src[pos]*num[pos-1];tmp1[(len>>1)-1]=mi(0);
+		}
+		#else
+		{
+			mi restrict *p1=src+1,*p2=tmp1,*p3=num.get();
+			for(ui i=1;i<(len>>1);++i,++p1,++p2,++p3) *p2=(*p1)*(*p3);
+			tmp1[(len>>1)-1]=mi(0);
+		}
+		#endif
+		dif(tmp1,__builtin_ctz(len>>1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<8){
+			for(ui i=0;i<(len>>1);++i) tmp1[i]*=gn[i];
+		}else{
+			__m256i restrict *p1=(__m256i*)(tmp1),*p2=(__m256i*)(gn);
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2) (*p1)=mai::mlib.mul((*p1),(*p2));
+		}
+		#else
+		for(ui i=0;i<(len>>1);++i) tmp1[i]*=gn[i];
+		#endif
+		dit(tmp1,__builtin_ctz(len>>1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		{
+			ui pos=1;__m256i restrict *pp=(__m256i*)tmp1,*iv=(__m256i*)num.get();mi restrict *p1=dst+1;
+			for(;pos+8<=(len>>1);pos+=8,p1+=8,++pp,++iv) *pp=mai::mlib.sub(mai::mlib.mul(_mm256_loadu_si256((__m256i*)p1),*iv),(*pp));
+			for(;pos<(len>>1);++pos) tmp1[pos-1]=dst[pos]*num[pos-1]-tmp1[pos-1];tmp1[(len>>1)-1]=-tmp1[(len>>1)-1];
+		}
+		#else
+		{
+			mi restrict *p1=dst+1,*p2=tmp1,*p3=num.get();
+			for(ui i=1;i<(len>>1);++i,++p1,++p2,++p3) *p2=(*p1)*(*p3)-(*p2);
+			tmp1[(len>>1)-1]=-tmp1[(len>>1)-1];
+		}
+		#endif
+		std::memmove(tmp1+1,tmp1,sizeof(mi)*(len>>1));tmp1[0]=tmp1[(len>>1)];
+		std::memset(tmp1+(len>>1),0,sizeof(mi)*(len>>1));
+		dif(tmp1,__builtin_ctz(len));
+		std::memcpy(tmp3,h,sizeof(mi)*(len>>1));std::memset(tmp3+(len>>1),0,sizeof(mi)*(len>>1));
+		dif(tmp3,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<8){
+			for(ui i=0;i<len;++i) tmp1[i]*=tmp3[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp1,*p2=(__m256i*)tmp3;
+			__m256i tt;
+			for(ui i=0;i<len;i+=8,++p1,++p2) (*p1)=mai::mlib.mul((*p1),(*p2));
+		}
+		#else
+		for(ui i=0;i<len;++i) tmp1[i]*=tmp3[i];
+		#endif
+		dit(tmp1,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			for(ui i=0;i<(len>>1);++i) tmp2[i]=src[i+(len>>1)]-_inv[i+(len>>1)-1]*tmp1[i];
+		}else{
+			__m256i restrict *p1=(__m256i*)tmp1,*p3=(__m256i*)(tmp2),*p4=(__m256i*)(src+(len>>1));mi* restrict p2=_inv.get()+(len>>1)-1;
+			for(ui i=0;i<(len>>1);i+=8,++p1,p2+=8,++p3,++p4) (*p3)=mai::mlib.sub((*p4),mai::mlib.mul((*p1),_mm256_loadu_si256((__m256i*)p2)));
+		}
+		#else
+		{
+			for(ui i=0;i<(len>>1);++i) tmp2[i]=src[i+(len>>1)]-_inv[i+(len>>1)-1]*tmp1[i];
+		}
+		#endif
+		std::memset(tmp2+(len>>1),0,sizeof(mi)*(len>>1));
+		dif(tmp2,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=16){
+			mi mip=ws1[3];
+			for(ui i=0;i<(len>>2);++i) tmp1[i]=(dst[i]+dst[i+(len>>2)]*mip)*ws0[(len>>1)+i]*ws0[(len>>2)+i];
+		}else{
+			__m256i restrict *p1=(__m256i*)dst,*p2=(__m256i*)(dst+(len>>2)),*p3=(__m256i*)(tmp1),*p4=(__m256i*)(ws0.get()+(len>>1)),*p5=(__m256i*)(ws0.get()+(len>>2));
+			__m256i mip=_mm256_set1_epi32(ws1[3].get_val());
+			for(ui i=0;i<(len>>2);i+=8,++p1,++p2,++p3,++p4,++p5) (*p3)=mai::mlib.mul(mai::mlib.add((*p1),mai::mlib.mul((*p2),mip)),mai::mlib.mul((*p4),(*p5)));
+		}
+		#else
+		{
+			mi mip=ws1[3];
+			for(ui i=0;i<(len>>2);++i) tmp1[i]=(dst[i]+dst[i+(len>>2)]*mip)*ws0[(len>>1)+i]*ws0[(len>>2)+i];
+		}
+		#endif
+		dif(tmp1,__builtin_ctz(len>>2));
+		std::memcpy(tmp1+(len>>2)*3,tmp1,sizeof(mi)*(len>>2));
+		std::memcpy(tmp1,gn,sizeof(mi)*(len>>1));
+		std::memcpy(tmp1+(len>>1),gxni,sizeof(mi)*(len>>2));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=4){
+			for(ui i=0;i<len;++i) tmp1[i]*=tmp2[i];
+		}else{
+			__m256i restrict *p1=(__m256i*)tmp1,*p2=(__m256i*)(tmp2);
+			for(ui i=0;i<len;i+=8,++p1,++p2) (*p1)=mai::mlib.mul((*p1),(*p2));
+		}
+		#else
+		for(ui i=0;i<len;++i) tmp1[i]*=tmp2[i];
+		#endif
+		dit(tmp1,__builtin_ctz(len));
+		std::memcpy(dst+(len>>1),tmp1,sizeof(mi)*(len>>1));
+		//inv iteration start
+		if(!calc_h) return;
+		std::memcpy(gxni,dst,sizeof(mi)*(len>>1));std::memcpy(tmp2,h,sizeof(mi)*(len>>1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			mi mip=ws0[3];
+			for(ui i=0;i<(len>>1);++i) gxni[i]+=mip*dst[i+(len>>1)];
+		}
+		else{
+			__m256i mip=_mm256_set1_epi32(ws0[3].get_val());
+			__m256i restrict *p1=(__m256i*)(dst+(len>>1)),*p2=(__m256i*)gxni;
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2) (*p2)=mai::mlib.add((*p2),mai::mlib.mul((*p1),mip));
+		}
+		#else
+		{
+			mi mip=ws0[3];
+			for(ui i=0;i<(len>>1);++i) gxni[i]+=mip*dst[i+(len>>1)];
+		}
+		#endif
+		dif_xni(gxni,__builtin_ctz(len>>1));
+		dif_xni(tmp2,__builtin_ctz(len>>1));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			for(ui i=0;i<(len>>1);++i) tmp2[i]*=tmp2[i]*gxni[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp2,*p2=(__m256i*)gxni;
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2) (*p1)=mai::mlib.mul((*p2),mai::mlib.mul((*p1),(*p1)));
+		}
+		#else
+		for(ui i=0;i<(len>>1);++i) tmp2[i]*=tmp2[i]*gxni[i];
+		#endif
+		dit_xni(tmp2,__builtin_ctz(len>>1));
+		std::memcpy(gn,dst,sizeof(mi)*len);
+		dif(gn,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			for(ui i=0;i<len;++i) tmp3[i]*=tmp3[i]*gn[i];
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp3,*p2=(__m256i*)gn;
+			for(ui i=0;i<len;i+=8,++p1,++p2) (*p1)=mai::mlib.mul((*p2),mai::mlib.mul((*p1),(*p1)));
+		}
+		#else
+		for(ui i=0;i<len;++i) tmp3[i]*=tmp3[i]*gn[i];
+		#endif
+		dit(tmp3,__builtin_ctz(len));
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(len<=8){
+			mi mip=ws0[3],iv2=_inv[1];
+			for(ui i=0;i<(len>>1);++i) h[i+(len>>1)]=((tmp2[i]+tmp3[i]-h[i]-h[i])*mip-tmp3[i+(len>>1)])*iv2;
+		}
+		else{
+			__m256i restrict *p1=(__m256i*)tmp2,*p2=(__m256i*)(tmp3+(len>>1)),*p3=(__m256i*)(tmp3),*p4=(__m256i*)(h+(len>>1)),*p5=(__m256i*)(h);
+			__m256i mip=_mm256_set1_epi32(ws0[3].get_val()),iv2=_mm256_set1_epi32(_inv[1].get_val());
+			for(ui i=0;i<(len>>1);i+=8,++p1,++p2,++p3,++p4,++p5) (*p4)=mai::mlib.mul(mai::mlib.sub(mai::mlib.mul(mai::mlib.sub(mai::mlib.add((*p1),(*p3)),mai::mlib.add((*p5),(*p5))),mip),(*p2)),iv2);
+		}
+		#else
+		{
+			mi mip=ws0[3],iv2=_inv[1];
+			for(ui i=0;i<(len>>1);++i) h[i+(len>>1)]=((tmp2[i]+tmp3[i]-h[i]-h[i])*mip-tmp3[i+(len>>1)])*iv2;
+		}
+		#endif
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::exp(const poly &src){
+		ui la=src.size();if(!la) throw std::runtime_error("Exp calculation of empty polynomial!");
+		if((la*2)>fn) throw std::runtime_error("Convolution size out of range!");
+		ui pre_mi_mod=global_mod_mi;
+		if(pre_mi_mod!=P) set_mod_mi(P);
+		#if defined(__AVX__) && defined(__AVX2__)
+		ui pre_mai_mod=global_mod_mai;
+		if(pre_mai_mod!=P) set_mod_mai(P);
+		#endif
+		if(src[0].real_val()!=0){
+			if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
+			#if defined(__AVX__) && defined(__AVX2__)
+			if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
+			#endif
+			throw std::runtime_error("Exp calculation of polynomial which has constant not equal to 0!");
+		}
+		ui m=0;if(la>1) m=32- __builtin_clz(la-1);
+		std::memcpy(tt[0].get(),&src[0],sizeof(mi)*la);std::memset(tt[0].get()+la,0,sizeof(mi)*((1<<m)-la));
+		internal_exp(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),tt[5].get(),tt[6].get(),tt[7].get(),(1<<m));
+		poly ret(la);
+		std::memcpy(&ret[0],tt[1].get(),sizeof(mi)*la);
+		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
+		#if defined(__AVX__) && defined(__AVX2__)
+		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
+		#endif
+		return ret;
+	}
+	std::array<long long,7> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
 		ui pre_mi_mod=global_mod_mi;
 		if(pre_mi_mod!=P) set_mod_mi(P);
 		#if defined(__AVX__) && defined(__AVX2__)
@@ -631,19 +828,24 @@ namespace math
 		for(ui i=0;i<T;++i) tt[0][0]=mi(1),internal_ln(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),len);
 		auto ln_end=std::chrono::system_clock::now();
 		auto ln_faster_start=std::chrono::system_clock::now();
-		for(ui i=0;i<T;++i) tt[0][0]=mi(1),internal_ln_faster(tt[0].get(),tt[1].get(),tt[2].get(),tt[3].get(),tt[4].get(),tt[5].get(),len);
+		for(ui i=0;i<T;++i) tt[i&1][0]=mi(1),internal_ln_faster(tt[i&1].get(),tt[i&1^1].get(),tt[2].get(),tt[3].get(),tt[4].get(),tt[5].get(),len);
 		auto ln_faster_end=std::chrono::system_clock::now();
+		auto exp_start=std::chrono::system_clock::now();
+		for(ui i=0;i<T;++i) tt[i&1][0]=mi(0),internal_exp(tt[i&1].get(),tt[i&1^1].get(),tt[2].get(),tt[3].get(),tt[4].get(),tt[5].get(),tt[6].get(),tt[7].get(),len);
+		auto exp_end=std::chrono::system_clock::now();
+		for(ui i=0;i<len;++i) assert(tt[0][i].real_val()==tt[tmp_size-1][i].real_val());
 		auto dif_duration=std::chrono::duration_cast<std::chrono::microseconds>(dif_end-dif_start),
 			 dit_duration=std::chrono::duration_cast<std::chrono::microseconds>(dit_end-dit_start),
 			 inv_duration=std::chrono::duration_cast<std::chrono::microseconds>(inv_end-inv_start),
 			 inv_faster_duration=std::chrono::duration_cast<std::chrono::microseconds>(inv_faster_end-inv_faster_start),
 			 ln_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_end-ln_start),
-			 ln_faster_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_faster_end-ln_faster_start);
+			 ln_faster_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_faster_end-ln_faster_start),
+			 exp_duration=std::chrono::duration_cast<std::chrono::microseconds>(exp_end-exp_start);
 		if(pre_mi_mod!=P) set_mod_mi(pre_mi_mod);
 		#if defined(__AVX__) && defined(__AVX2__)
 		if(pre_mai_mod!=P) set_mod_mai(pre_mai_mod);
 		#endif
-		return {dif_duration.count(),dit_duration.count(),inv_duration.count(),inv_faster_duration.count(),ln_duration.count(),ln_faster_duration.count()};
+		return {dif_duration.count(),dit_duration.count(),inv_duration.count(),inv_faster_duration.count(),ln_duration.count(),ln_faster_duration.count(),exp_duration.count()};
 	}
 }
 namespace tools

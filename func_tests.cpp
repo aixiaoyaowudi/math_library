@@ -4,14 +4,16 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <omp.h>
 using namespace math;
 int main(){
 	{
-		std::cerr<<"Start NTT test"<<std::endl;
+		std::cerr<<"Start single thread NTT test"<<std::endl;
 		constexpr ui test_size=(1<<21),T=100;
 		power_series_ring::polynomial_kernel::polynomial_kernel_ntt p((test_size<<1),default_mod,3);
-		// power_series_ring::poly a={1,927384623,878326372,3882,273455637,998233543};
-		// a=p.ln(a);
+		// power_series_ring::poly a(20);
+		// for(int i=0;i<20;++i) a[i]=mi(i);
+		// a=p.exp(a);
 		// for(auto &&v:a) printf("%u ",v.real_val());printf("\n");
 		auto r=p.test(T);
 		std::cerr<<"NTT test of size "<<test_size<<std::endl;
@@ -21,8 +23,35 @@ int main(){
 		std::cerr<<"Inv(faster) x"<<T<<" finished in "<<r[3]<<"us"<<std::endl;
 		std::cerr<<"Ln          x"<<T<<" finished in "<<r[4]<<"us"<<std::endl;
 		std::cerr<<"Ln(faster)  x"<<T<<" finished in "<<r[5]<<"us"<<std::endl;
-		std::cerr<<"End NTT test"<<std::endl;
+		std::cerr<<"Exp         x"<<T<<" finished in "<<r[6]<<"us"<<std::endl;
+		std::cerr<<"End single thread NTT test"<<std::endl;
 	}
+	#if defined(_OPENMP)
+	{
+		std::cerr<<"Start multiple thread NTT test"<<std::endl;
+		std::array<long long,7> time_cost={0,0,0,0,0,0,0};int nt;
+		constexpr ui test_size=(1<<21),T=100;
+		power_series_ring::polynomial_kernel::polynomial_kernel_ntt p((test_size<<1),default_mod,3);
+		#pragma omp parallel firstprivate(p)
+		{
+			auto r=p.test(T);
+			#pragma omp critical
+			{
+				for(ui i=0;i<7;++i) time_cost[i]+=r[i];
+				nt=omp_get_num_threads();
+			}
+		}
+		std::cerr<<"NTT test of size "<<test_size<<std::endl;
+		std::cerr<<"Dif         x"<<T<<" finished in "<<time_cost[0]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Dit         x"<<T<<" finished in "<<time_cost[1]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Inv         x"<<T<<" finished in "<<time_cost[2]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Inv(faster) x"<<T<<" finished in "<<time_cost[3]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Ln          x"<<T<<" finished in "<<time_cost[4]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Ln(faster)  x"<<T<<" finished in "<<time_cost[5]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Exp         x"<<T<<" finished in "<<time_cost[6]/nt<<"us in average"<<std::endl;
+		std::cerr<<"End multiple thread NTT test"<<std::endl;
+	}
+	#endif
 	std::this_thread::sleep_for(std::chrono::seconds(2));
 	{
 		std::cerr<<"Start mod_int test"<<std::endl;

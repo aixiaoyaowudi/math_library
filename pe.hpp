@@ -28,6 +28,7 @@
 #define assume_aligned(a,b) __assume_aligned((a),(b))
 #elif defined(__GNUC__)
 #define assume_aligned(a,b) ((a)=__builtin_assume_aligned((a),(b)))
+#define restrict
 #include <new>
 #else
 #error "only gnu compiler or intel compiler is supported"
@@ -252,8 +253,8 @@ namespace math
 		template<typename T>
 		struct has_unit_value_helper
 		{
-			template<typename T> static auto test(int) -> typename std::enable_if<(std::is_arithmetic_v<T> || is_mod_int_v<T>),std::true_type>::type;
-			template<typename T> static auto test(...) -> std::false_type;
+			template<typename G> static auto test(int) -> typename std::enable_if<(std::is_arithmetic_v<G> || is_mod_int_v<G>),std::true_type>::type;
+			template<typename G> static auto test(...) -> std::false_type;
 			using type=decltype(test<T>(0));
 		};
 		template<typename T> using has_unit_value=typename has_unit_value_helper<T>::type;
@@ -321,7 +322,7 @@ namespace math
 			class polynomial_kernel_ntt
 			{
 			private:
-				static constexpr ui tmp_size=7;
+				static constexpr ui tmp_size=9;
 				aligned_array<mi,32> ws0,ws1,_inv,tt[tmp_size],num;ui P,G;
 				ui fn,fb,mx;
 				void release();
@@ -334,6 +335,8 @@ namespace math
 				void internal_inv_faster(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,mi* restrict tmp3,ui len);
 				void internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,mi* restrict tmp3,ui len);
 				void internal_ln_faster(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,mi* restrict tmp3,mi* restrict tmp4,ui len);
+				void internal_exp(mi* restrict src,mi* restrict dst,mi* restrict gn,mi* restrict gxni,
+								  mi* restrict h,mi* restrict tmp1,mi* restrict tmp2,mi* restrict tmp3,ui len,bool calc_h=false);
 			public:
 				friend class polynomial_kernel;
 				polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0);
@@ -344,7 +347,8 @@ namespace math
 				poly mul(const poly &a,const poly &b);
 				poly inv(const poly &src);
 				poly ln(const poly &src);
-				std::array<long long,6> test(ui T);
+				poly exp(const poly &src);
+				std::array<long long,7> test(ui T);
 			};
 		}
 	}
