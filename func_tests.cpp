@@ -8,12 +8,12 @@
 using namespace math;
 int main(){
 	{
-		std::cerr<<"Start single thread NTT test"<<std::endl;
+		// std::cerr<<"Start single thread NTT test"<<std::endl;
 		constexpr ui test_size=(1<<21),T=100;
 		power_series_ring::polynomial_kernel::polynomial_kernel_ntt p((test_size<<1),default_mod,3);
 		// power_series_ring::poly a(20);
-		// for(int i=0;i<20;++i) a[i]=mi(i);
-		// a=p.exp(a);
+		// for(int i=0;i<20;++i) a[i]=mi((i+1)*(i+1));
+		// a=p.ln(a);
 		// for(auto &&v:a) printf("%u ",v.real_val());printf("\n");
 		auto r=p.test(T);
 		std::cerr<<"NTT test of size "<<test_size<<std::endl;

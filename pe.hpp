@@ -89,7 +89,11 @@ namespace math
 				ui P,P2,NP,Pk;static constexpr ui ui_len = sizeof(ui)*8;
 				montgomery_mi_lib(ui P0):P(P0),P2(P0*2),NP((-ull(P0))%P0),Pk(calc_k(P0,ui_len)){}
 				montgomery_mi_lib(){}
-				ui redd(ui k) const {return k>=P2?k-P2:k;}ui reds(ui k) const {return k>=P?k-P:k;}ui redu(ull k) const {return (k+ull(ui(k)*Pk)*P)>>ui_len;}
+				#define INLINE_OP __attribute__((__always_inline__))
+				INLINE_OP ui redd(ui k) const {return k>=P2?k-P2:k;}INLINE_OP ui reds(ui k) const {return k>=P?k-P:k;}INLINE_OP ui redu(ull k) const {return (k+ull(ui(k)*Pk)*P)>>ui_len;}
+				INLINE_OP ui add(ui a,ui b) const {return redd(a+b);}INLINE_OP ui sub(ui a,ui b) const {return redd(a-b+P2);}INLINE_OP ui mul(ui a,ui b) const {return redu(ull(a)*b);}
+				INLINE_OP ui neg(ui a) const {return redd(P2-a);}INLINE_OP ui v(ui a) const {return redu(ull(a)*NP);}INLINE_OP ui rv(ui a) const {return reds(redu(a));}
+				#undef INLINE_OP
 			};
 			struct montgomery_mi{
 				static montgomery_mi_lib mlib;
@@ -142,6 +146,7 @@ namespace math
 			};
 			typedef montgomery_mi mi;
 			typedef montgomery_mli mli;
+			typedef montgomery_mi_lib lmi;
 			#if defined(__AVX__) && defined(__AVX2__)
 			struct montgomery_mm256_lib{
 				alignas(32) __m256i P,P2,NP,Pk,mask1;static constexpr ui ui_len=sizeof(ui)*8;
@@ -180,6 +185,7 @@ namespace math
 				__m256i get_val() const {return val;}
 			};
 			typedef montgomery_mm256_int mai;
+			typedef montgomery_mm256_lib lma;
 			#endif
 			extern ui global_mod_mi;
 			extern ull global_mod_mli;
@@ -208,10 +214,12 @@ namespace math
 	using modulo::mod_int::global_mod_mi;
 	using modulo::mod_int::global_mod_mli;
 	using modulo::mod_int::default_mod;
+	using modulo::mod_int::lmi;
 	#if defined(__AVX__) && defined(__AVX2__)
 	using modulo::mod_int::mai;
 	using modulo::mod_int::global_mod_mai;
 	using modulo::mod_int::set_mod_mai;
+	using modulo::mod_int::lma;
 	#endif
 	namespace traits
 	{
@@ -323,20 +331,25 @@ namespace math
 			{
 			private:
 				static constexpr ui tmp_size=9;
-				aligned_array<mi,32> ws0,ws1,_inv,tt[tmp_size],num;ui P,G;
+				aligned_array<ui,32> ws0,ws1,_inv,tt[tmp_size],num;ui P,G;
 				ui fn,fb,mx;
 				void release();
-				void dif(mi* restrict arr,ui n);
-				void dit(mi* restrict arr,ui n);
-				void dif_xni(mi* restrict arr,ui n);
-				void dit_xni(mi* restrict arr,ui n);
-				void internal_mul(mi* restrict src1,mi* restrict src2,mi* restrict dst,ui m);
-				void internal_inv(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,ui len);
-				void internal_inv_faster(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,mi* restrict tmp3,ui len);
-				void internal_ln(mi* restrict src,mi* restrict dst,mi* restrict tmp1,mi* restrict tmp2,mi* restrict tmp3,ui len);
-				void internal_ln_faster(mi* restrict src,mi* restrict dst,mi* restrict tmp,mi* restrict tmp2,mi* restrict tmp3,mi* restrict tmp4,ui len);
-				void internal_exp(mi* restrict src,mi* restrict dst,mi* restrict gn,mi* restrict gxni,
-								  mi* restrict h,mi* restrict tmp1,mi* restrict tmp2,mi* restrict tmp3,ui len,bool calc_h=false);
+				ui _fastpow(ui a,ui b);
+				void dif(ui* restrict arr,ui n);
+				void dit(ui* restrict arr,ui n);
+				void dif_xni(ui* restrict arr,ui n);
+				void dit_xni(ui* restrict arr,ui n);
+				void internal_mul(ui* restrict src1,ui* restrict src2,ui* restrict dst,ui m);
+				void internal_inv(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui len);
+				void internal_inv_faster(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui* restrict tmp3,ui len);
+				void internal_ln(ui* restrict src,ui* restrict dst,ui* restrict tmp1,ui* restrict tmp2,ui* restrict tmp3,ui len);
+				void internal_ln_faster(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui* restrict tmp3,ui* restrict tmp4,ui len);
+				void internal_exp(ui* restrict src,ui* restrict dst,ui* restrict gn,ui* restrict gxni,
+								  ui* restrict h,ui* restrict tmp1,ui* restrict tmp2,ui* restrict tmp3,ui len,bool calc_h=false);
+				lmi li;
+				#if defined(__AVX__) && defined(__AVX2__)
+				lma la;
+				#endif
 			public:
 				friend class polynomial_kernel;
 				polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0);
