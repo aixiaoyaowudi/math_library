@@ -72,6 +72,25 @@ namespace math
 				#endif
 			}
 			#endif
+			#if defined(__AVX512F__) && defined(__AVX512DQ__)
+			ui global_mod_m5i=default_mod;
+			montgomery_mm512_lib m5i::mlib(default_mod);
+			void set_mod_m5i(ui p){
+				m5i::mlib=montgomery_mm512_lib(p);
+				global_mod_m5i=p;
+			}
+			void set_mod_for_all_threads_m5i(ui p){
+				#if defined(_OPENMP)
+				#pragma omp parallel
+				{
+				#endif
+					m5i::mlib=montgomery_mm512_lib(p);
+					global_mod_m5i=p;
+				#if defined(_OPENMP)
+				}
+				#endif
+			}
+			#endif
 		}
 	}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::release(){

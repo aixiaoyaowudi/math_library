@@ -149,8 +149,8 @@ namespace math
 			typedef montgomery_mi_lib lmi;
 			#if defined(__AVX__) && defined(__AVX2__)
 			struct montgomery_mm256_lib{
-				alignas(32) __m256i P,P2,NP,Pk,mask1;static constexpr ui ui_len=sizeof(ui)*8;
-				montgomery_mm256_lib(ui P0){P=_mm256_set1_epi32(P0),P2=_mm256_set1_epi32(P0*2),mask1=_mm256_setr_epi32(0,P0*2,0,P0*2,0,P0*2,0,P0*2),
+				alignas(32) __m256i P,P2,NP,Pk;static constexpr ui ui_len=sizeof(ui)*8;
+				montgomery_mm256_lib(ui P0){P=_mm256_set1_epi32(P0),P2=_mm256_set1_epi32(P0*2),
 					NP=_mm256_set1_epi32(ui((-ull(P0))%P0)),Pk=_mm256_set1_epi32(montgomery_mi_lib::calc_k(P0,ui_len));}
 				montgomery_mm256_lib(){}
 				#define INLINE_OP __attribute__((__always_inline__))
@@ -187,6 +187,46 @@ namespace math
 			typedef montgomery_mm256_int mai;
 			typedef montgomery_mm256_lib lma;
 			#endif
+			#if defined(__AVX512F__) && defined(__AVX512DQ__)
+			struct montgomery_mm512_lib{
+				alignas(64) __m512i P,P2,NP,Pk;static constexpr ui ui_len=sizeof(ui)*8;
+				montgomery_mm512_lib(ui P0){P=_mm512_set1_epi32(P0),P2=_mm512_set1_epi32(P0*2),
+					NP=_mm512_set1_epi32(ui((-ull(P0))%P0)),Pk=_mm512_set1_epi32(montgomery_mi_lib::calc_k(P0,ui_len));}
+				montgomery_mm512_lib(){}
+				#define INLINE_OP __attribute__((__always_inline__))
+				INLINE_OP __m512i redd(__m512i k){__m512i a=_mm512_sub_epi32(k,P2);return _mm512_mask_add_epi32(a,_mm512_cmpgt_epi32_mask(_mm512_setzero_si512(),a),a,P2);}
+				INLINE_OP __m512i reds(__m512i k){__m512i a=_mm512_sub_epi32(k,P);return _mm512_mask_add_epi32(a,_mm512_cmpgt_epi32_mask(_mm512_setzero_si512(),a),a,P);}
+				INLINE_OP __m512i redu(__m512i k){return _mm512_srli_epi64(_mm512_add_epi64(_mm512_mul_epu32(_mm512_mul_epu32(k,Pk),P),k),32);}
+				INLINE_OP __m512i mul(__m512i k1,__m512i k2){
+					return _mm512_or_si512(redu(_mm512_mul_epu32(k1,k2)),_mm512_slli_epi64(redu(_mm512_mul_epu32(_mm512_srli_epi64(k1,32),_mm512_srli_epi64(k2,32))),32));}
+				INLINE_OP __m512i add(__m512i k1,__m512i k2){return redd(_mm512_add_epi32(k1,k2));}
+				INLINE_OP __m512i sub(__m512i k1,__m512i k2){return redd(_mm512_add_epi32(P2,_mm512_sub_epi32(k1,k2)));}
+				#undef INLINE_OP
+			};
+			struct montgomery_mm512_int{
+				static montgomery_mm512_lib mlib;
+				#if defined(_OPENMP)
+				#pragma omp threadprivate(mlib)
+				#endif
+				__m512i val;
+				void init(__m512i a){val=mlib.mul(a,mlib.NP);}
+				montgomery_mm512_int(){val=_mm512_setzero_si512();} montgomery_mm512_int(const montgomery_mm512_int &a):val(a.val){} montgomery_mm512_int(__m512i v):val(mlib.mul(v,mlib.NP)){}
+				montgomery_mm512_int(ui v){init(_mm512_set1_epi32(v));}
+				montgomery_mm512_int& operator=(const montgomery_mm512_int &b) {val=b.val;return *this;}
+				montgomery_mm512_int& operator+=(const montgomery_mm512_int &b) {val=mlib.add(val,b.val);return *this;}
+				montgomery_mm512_int& operator-=(const montgomery_mm512_int &b) {val=mlib.sub(val,b.val);return *this;}
+				montgomery_mm512_int operator+(const montgomery_mm512_int &b) const {return montgomery_mm512_int(*this)+=b;}
+				montgomery_mm512_int operator-(const montgomery_mm512_int &b) const {return montgomery_mm512_int(*this)-=b;}
+				montgomery_mm512_int operator*=(const montgomery_mm512_int &b) {val=mlib.mul(val,b.val);return *this;}
+				montgomery_mm512_int operator*(const montgomery_mm512_int &b) const {return montgomery_mm512_int(*this)*=b;}
+				montgomery_mm512_int operator-() const {montgomery_mm512_int b;return b-=(*this);}
+				__m512i real_val() const {return mlib.reds(_mm512_or_si512(_mm512_slli_epi64(mlib.redu(_mm512_srli_epi64(val,32)),32),
+					mlib.redu(_mm512_srli_epi64(_mm512_slli_epi64(val,32),32))));}
+				__m512i get_val() const {return val;}
+			};
+			typedef montgomery_mm512_int m5i;
+			typedef montgomery_mm512_lib lm5;
+			#endif
 			extern ui global_mod_mi;
 			extern ull global_mod_mli;
 			#if defined(_OPENMP)
@@ -205,6 +245,14 @@ namespace math
 			void set_mod_mai(ui p);
 			void set_mod_for_all_threads_mai(ui p);
 			#endif
+			#if defined(__AVX512F__) && defined(__AVX512DQ__)
+			extern ui global_mod_m5i;
+			#if defined(_OPENMP)
+			#pragma omp threadprivate(global_mod_m5i)
+			#endif
+			void set_mod_m5i(ui p);
+			void set_mod_for_all_threads_m5i(ui p);
+			#endif
 		}
 	}
 	using modulo::mod_int::mi;
@@ -220,6 +268,10 @@ namespace math
 	using modulo::mod_int::global_mod_mai;
 	using modulo::mod_int::set_mod_mai;
 	using modulo::mod_int::lma;
+	#endif
+	#if defined(__AVX512F__) && defined(__AVX512DQ__)
+	using modulo::mod_int::m5i;
+	using modulo::mod_int::lm5;
 	#endif
 	namespace traits
 	{
@@ -256,6 +308,9 @@ namespace math
 		template<> struct is_mod_int<mli>:std::true_type{};
 		#if defined(__AVX__) && defined(__AVX2__)
 		template<> struct is_mod_int<mai>:std::true_type{};
+		#endif
+		#if defined(__AVX512F__) && defined(__AVX512DQ__)
+		template<> struct is_mod_int<m5i>:std::true_type{};
 		#endif
 		template<typename T> constexpr bool is_mod_int_v=is_mod_int<T>::value;
 		template<typename T>
