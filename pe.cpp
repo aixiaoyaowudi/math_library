@@ -108,6 +108,9 @@ namespace math
 		#if defined(__AVX__) && defined(__AVX2__)
 		la=lma(P0);
 		#endif
+		#if defined(__AVX512F__) && defined(__AVX512DQ__)
+		l5=lm5(P0);
+		#endif
 		release();P=P0,G=G0;mx=max_conv_size;
 		fn=1;fb=0;while(fn<(max_conv_size<<1)) fn<<=1,++fb;
 		_inv=create_aligned_array<ui,64>(fn+32);ws0 =create_aligned_array<ui,64>(fn+32);
@@ -126,6 +129,9 @@ namespace math
 		#if defined(__AVX__) && defined(__AVX2__)
 		la=d.la;
 		#endif
+		#if defined(__AVX512F__) && defined(__AVX512DQ__)
+		l5=d.l5;
+		#endif
 		if(d.mx){
 			_inv=create_aligned_array<ui,64>(fn+32);ws0 =create_aligned_array<ui,64>(fn+32);
 			ws1 =create_aligned_array<ui,64>(fn+32);num =create_aligned_array<ui,64>(fn+32);
@@ -139,7 +145,87 @@ namespace math
 	power_series_ring::polynomial_kernel::polynomial_kernel_ntt::polynomial_kernel_ntt(){fn=fb=mx=0;}
 	power_series_ring::polynomial_kernel::polynomial_kernel_ntt::polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0){init(max_conv_size,P0,G0);}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::dif(ui* restrict p,ui n){
-		#if defined(__AVX__) && defined(__AVX2__)
+		#if defined(__AVX512F__) && defined(__AVX512DQ__)
+		ui len=(1<<n);
+		ui* restrict ws=ws0.get();
+		if(len<16){
+			ui t1,t2;
+			for(ui l=len;l>=2;l>>=1) for(ui j=0,mid=(l>>1);j<len;j+=l){
+				ui restrict *p1=p+j,*p2=p+j+mid,*ww=ws+mid;
+				for(ui i=0;i<mid;++i,++p1,++p2,++ww) t1=*p1,t2=*p2,*p1=li.add(t1,t2),*p2=li.mul(li.sub(t1,t2),(*ww));
+			}
+		}else if(len<=(1<<NTT_partition_size)){
+			__m512i* pp=(__m512i*)p,*p1,*p2,*ww;
+			__m512i msk,val;__mmask16 smsk;
+			for(ui l=len;l>16;l>>=1){
+				ui mid=(l>>1);
+				for(ui j=0;j<len;j+=l){
+					p1=(__m512i*)(p+j),p2=(__m512i*)(p+j+mid),ww=(__m512i*)(ws+mid);
+					for(ui i=0;i<mid;i+=16,++p1,++p2,++ww){
+						__m512i x=*p1,y=*p2;
+						*p1=l5.add(x,y);
+						*p2=l5.mul(l5.sub(x,y),*ww);
+					}
+				}
+			}
+			val=_mm512_setr_epi32(ws[8],ws[8],ws[8],ws[8],
+								  ws[8],ws[8],ws[8],ws[8],
+								  ws[8],ws[9],ws[10],ws[11],
+								  ws[12],ws[13],ws[14],ws[15]);
+			msk=_mm512_setr_epi32(0,0,0,0,0,0,0,0,P*2,P*2,P*2,P*2,P*2,P*2,P*2,P*2);
+			smsk=0xff00;
+			pp=(__m512i*)p;
+			for(ui j=0;j<len;j+=16,++pp){
+				__m512i x=_mm512_shuffle_i64x2(*pp,*pp,_MM_PERM_BADC);
+				__m512i y=_mm512_mask_sub_epi32(*pp,smsk,msk,*pp);
+				*pp=l5.mul(l5.add(x,y),val);
+			}
+			val=_mm512_setr_epi32(ws[4],ws[4],ws[4],ws[4],
+								  ws[4],ws[5],ws[6],ws[7],
+								  ws[4],ws[4],ws[4],ws[4],
+								  ws[4],ws[5],ws[6],ws[7]);
+			smsk=0xf0f0;
+			msk=_mm512_setr_epi32(0,0,0,0,P*2,P*2,P*2,P*2,0,0,0,0,P*2,P*2,P*2,P*2);
+			pp=(__m512i*)p;
+			for(ui j=0;j<len;j+=16,++pp){
+				__m512i x=_mm512_shuffle_i64x2(*pp,*pp,_MM_PERM_CDAB);
+				__m512i y=_mm512_mask_sub_epi32(*pp,smsk,msk,*pp);
+				*pp=l5.mul(l5.add(x,y),val);
+			}
+			val=_mm512_setr_epi32(ws[2],ws[2],ws[2],ws[3],
+								  ws[2],ws[2],ws[2],ws[3],
+								  ws[2],ws[2],ws[2],ws[3],
+								  ws[2],ws[2],ws[2],ws[3]);
+			msk=_mm512_setr_epi32(0,0,P*2,P*2,0,0,P*2,P*2,0,0,P*2,P*2,0,0,P*2,P*2);
+			pp=(__m512i*)p;
+			smsk=0xcccc;
+			for(ui j=0;j<len;j+=16,++pp){
+				__m512i x=_mm512_shuffle_epi32(*pp,_MM_PERM_BADC);
+				__m512i y=_mm512_mask_sub_epi32(*pp,smsk,msk,*pp);
+				*pp=l5.mul(l5.add(x,y),val);
+			}
+			msk=_mm512_setr_epi32(0,P*2,0,P*2,0,P*2,0,P*2,0,P*2,0,P*2,0,P*2,0,P*2);
+			pp=(__m512i*)p;
+			smsk=0xaaaa;
+			for(ui j=0;j<len;j+=16,++pp){
+				__m512i x=_mm512_shuffle_epi32(*pp,_MM_PERM_CDAB);
+				__m512i y=_mm512_mask_sub_epi32(*pp,smsk,msk,*pp);
+				*pp=l5.add(x,y);
+			}
+		}
+		else{
+			__m512i *p1=(__m512i*)(p),*p2=(__m512i*)(p+(len>>2)),*p3=(__m512i*)(p+(len>>1)),*p4=(__m512i*)(p+(len>>2)*3),*w1=(__m512i*)(ws0.get()+(len>>1)),
+			*w2=(__m512i*)(ws0.get()+(len>>1)+(len>>2)),*w3=(__m512i*)(ws0.get()+(len>>2));
+			for(ui i=0;i<(len>>2);i+=16,++p1,++p2,++p3,++p4,++w2,++w3,++w1){
+				__m512i x=(*(p1)),y=(*(p2)),z=(*(p3)),w=(*(p4));
+				__m512i r=l5.add(x,z),s=l5.mul(l5.sub(x,z),*w1);
+				__m512i t=l5.add(y,w),q=l5.mul(l5.sub(y,w),*w2);
+				(*(p1))=l5.add(r,t);(*(p2))=l5.mul(l5.sub(r,t),*w3);
+				(*(p3))=l5.add(s,q);(*(p4))=l5.mul(l5.sub(s,q),*w3);
+			}
+			dif(p,n-2);dif(p+(1<<(n-2)),n-2);dif(p+(1<<(n-1)),n-2);dif(p+(1<<(n-2))*3,n-2);
+		}
+		#elif defined(__AVX__) && defined(__AVX2__)
 		ui len=(1<<n);
 		ui* restrict ws=ws0.get();
 		if(len<8){
@@ -211,7 +297,95 @@ namespace math
 		#endif
 	}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::dit(ui* restrict p,ui n,bool inverse_coef){
-		#if defined(__AVX__) && defined(__AVX2__)
+		#if defined(__AVX512F__) && defined(__AVX512DQ__)
+		ui len=(1<<n);
+		ui* restrict ws=ws1.get();
+		if(len<16){
+			ui t1,t2;
+			for(ui l=2;l<=len;l<<=1) for(ui j=0,mid=(l>>1);j<len;j+=l){
+				ui restrict *p1=p+j,*p2=p+j+mid,*ww=ws+mid;
+				for(ui i=0;i<mid;++i,++p1,++p2,++ww) t1=*p1,t2=li.mul((*p2),(*ww)),*p1=li.add(t1,t2),*p2=li.sub(t1,t2);
+			}
+			ui co=_inv[len-1];ui* restrict p1=p;
+			for(ui i=0;i<len;++i,++p1) (*p1)=li.mul(co,(*p1));
+		}else if(len<=(1<<NTT_partition_size)){
+			__m512i* pp=(__m512i*)p,*p1,*p2,*ww;
+			__m512i msk,val;__mmask16 smsk;
+			msk=_mm512_setr_epi32(0,P*2,0,P*2,0,P*2,0,P*2,0,P*2,0,P*2,0,P*2,0,P*2);
+			smsk=0xaaaa;
+			pp=(__m512i*)p;
+			for(ui j=0;j<len;j+=16,++pp){
+				__m512i x=_mm512_shuffle_epi32(*pp,_MM_PERM_CDAB);
+				__m512i y=_mm512_mask_sub_epi32(*pp,smsk,msk,*pp);
+				*pp=l5.add(x,y);
+			}
+			val=_mm512_setr_epi32(ws[2],ws[3],li.neg(ws[2]),li.neg(ws[3]),
+								  ws[2],ws[3],li.neg(ws[2]),li.neg(ws[3]),
+								  ws[2],ws[3],li.neg(ws[2]),li.neg(ws[3]),
+								  ws[2],ws[3],li.neg(ws[2]),li.neg(ws[3]));
+			pp=(__m512i*)p;
+			for(ui j=0;j<len;j+=16,++pp){
+				__m512i x=_mm512_shuffle_epi32(*pp,_MM_PERM_BABA);
+				__m512i y=_mm512_shuffle_epi32(*pp,_MM_PERM_DCDC);
+				*pp=l5.add(x,l5.mul(y,val));
+			}
+			val=_mm512_setr_epi32(  ws[4],   ws[5],   ws[6],   ws[7],
+								  li.neg(ws[4]),li.neg(ws[5]),li.neg(ws[6]),li.neg(ws[7]),
+								    ws[4],   ws[5],   ws[6],   ws[7],
+								  li.neg(ws[4]),li.neg(ws[5]),li.neg(ws[6]),li.neg(ws[7]));
+			pp=(__m512i*)p;
+			for(ui j=0;j<len;j+=16,++pp){
+				__m512i x=_mm512_shuffle_i64x2(*pp,*pp,_MM_PERM_CCAA);
+				__m512i y=_mm512_shuffle_i64x2(*pp,*pp,_MM_PERM_DDBB);
+				*pp=l5.add(x,l5.mul(y,val));
+			}
+			val=_mm512_setr_epi32(  ws[8],    ws[9],    ws[10],   ws[11],
+								    ws[12],   ws[13],   ws[14],   ws[15],
+								  li.neg(ws[8]), li.neg(ws[9]), li.neg(ws[10]),li.neg(ws[11]),
+								  li.neg(ws[12]),li.neg(ws[13]),li.neg(ws[14]),li.neg(ws[15]));
+			pp=(__m512i*)p;
+			for(ui j=0;j<len;j+=16,++pp){
+				__m512i x=_mm512_shuffle_i64x2(*pp,*pp,_MM_PERM_BABA);
+				__m512i y=_mm512_shuffle_i64x2(*pp,*pp,_MM_PERM_DCDC);
+				*pp=l5.add(x,l5.mul(y,val));
+			}
+			for(ui l=32;l<=len;l<<=1){
+				ui mid=(l>>1);
+				for(ui j=0;j<len;j+=l){
+					p1=(__m512i*)(p+j),p2=(__m512i*)(p+j+mid),ww=(__m512i*)(ws+mid);
+					for(ui i=0;i<mid;i+=16,++p1,++p2,++ww){
+						__m512i x=*p1,y=l5.mul(*p2,*ww);
+						*p1=l5.add(x,y);
+						*p2=l5.sub(x,y);
+					}
+				}
+			}
+			if(inverse_coef){
+				__m512i co=_mm512_set1_epi32(_inv[len-1]);
+				pp=(__m512i*)p;
+				for(ui i=0;i<len;i+=16,++pp) (*pp)=l5.mul(*pp,co);
+			}
+		}
+		else{
+			dit(p,n-2,false);dit(p+(1<<(n-2)),n-2,false);dit(p+(1<<(n-1)),n-2,false);dit(p+(1<<(n-2))*3,n-2,false);
+			__m512i *p1=(__m512i*)(p),*p2=(__m512i*)(p+(len>>2)),*p3=(__m512i*)(p+(len>>1)),*p4=(__m512i*)(p+(len>>2)*3),*w1=(__m512i*)(ws+(len>>1)),
+			*w2=(__m512i*)(ws+(len>>1)+(len>>2)),*w3=(__m512i*)(ws+(len>>2));
+			for(ui i=0;i<(len>>2);i+=16,++p1,++p2,++p3,++p4,++w2,++w3,++w1){
+				__m512i x=(*(p1)),y=(*(p2)),z=(*(p3)),w=(*(p4));
+				__m512i h=l5.mul(y,*w3),
+						k=l5.mul(w,*w3);
+				__m512i	t=l5.mul(l5.add(z,k),*w1),q=l5.mul(l5.sub(z,k),*w2);
+				__m512i r=l5.add(x,h),s=l5.sub(x,h);
+				(*(p1))=l5.add(r,t);(*(p2))=l5.add(s,q);
+				(*(p3))=l5.sub(r,t);(*(p4))=l5.sub(s,q);
+			}
+			if(inverse_coef){
+				__m512i co=_mm512_set1_epi32(_inv[len-1]);
+				p1=(__m512i*)p;
+				for(ui i=0;i<len;i+=16,++p1) (*p1)=l5.mul(*p1,co);
+			}
+		}
+		#elif defined(__AVX__) && defined(__AVX2__)
 		ui len=(1<<n);
 		ui* restrict ws=ws1.get();
 		if(len<8){

@@ -405,6 +405,9 @@ namespace math
 				#if defined(__AVX__) && defined(__AVX2__)
 				lma la;
 				#endif
+				#if defined(__AVX512F__) && defined(__AVX512DQ__)
+				lm5 l5;
+				#endif
 			public:
 				friend class polynomial_kernel;
 				polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0);
