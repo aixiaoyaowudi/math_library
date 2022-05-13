@@ -194,8 +194,8 @@ namespace math
 					NP=_mm512_set1_epi32(ui((-ull(P0))%P0)),Pk=_mm512_set1_epi32(montgomery_mi_lib::calc_k(P0,ui_len));}
 				montgomery_mm512_lib(){}
 				#define INLINE_OP __attribute__((__always_inline__))
-				INLINE_OP __m512i redd(__m512i k){__m512i a=_mm512_sub_epi32(k,P2);return _mm512_mask_add_epi32(a,_mm512_cmpgt_epi32_mask(_mm512_setzero_si512(),a),a,P2);}
-				INLINE_OP __m512i reds(__m512i k){__m512i a=_mm512_sub_epi32(k,P);return _mm512_mask_add_epi32(a,_mm512_cmpgt_epi32_mask(_mm512_setzero_si512(),a),a,P);}
+				INLINE_OP __m512i redd(__m512i k){__m512i a=_mm512_sub_epi32(k,P2);return _mm512_mask_add_epi32(a,_mm512_movepi32_mask(a),a,P2);}
+				INLINE_OP __m512i reds(__m512i k){__m512i a=_mm512_sub_epi32(k,P);return _mm512_mask_add_epi32(a,_mm512_movepi32_mask(a),a,P);}
 				INLINE_OP __m512i redu(__m512i k){return _mm512_srli_epi64(_mm512_add_epi64(_mm512_mul_epu32(_mm512_mul_epu32(k,Pk),P),k),32);}
 				INLINE_OP __m512i mul(__m512i k1,__m512i k2){
 					return _mm512_or_si512(redu(_mm512_mul_epu32(k1,k2)),_mm512_slli_epi64(redu(_mm512_mul_epu32(_mm512_srli_epi64(k1,32),_mm512_srli_epi64(k2,32))),32));}
@@ -386,12 +386,12 @@ namespace math
 			{
 			private:
 				static constexpr ui tmp_size=9;
-				aligned_array<ui,32> ws0,ws1,_inv,tt[tmp_size],num;ui P,G;
+				aligned_array<ui,64> ws0,ws1,_inv,tt[tmp_size],num;ui P,G;
 				ui fn,fb,mx;
 				void release();
 				ui _fastpow(ui a,ui b);
 				void dif(ui* restrict arr,ui n);
-				void dit(ui* restrict arr,ui n);
+				void dit(ui* restrict arr,ui n,bool last_layer=true);
 				void dif_xni(ui* restrict arr,ui n);
 				void dit_xni(ui* restrict arr,ui n);
 				void internal_mul(ui* restrict src1,ui* restrict src2,ui* restrict dst,ui m);

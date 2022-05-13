@@ -12,6 +12,8 @@
 	#define omp_get_num_threads() 1
 #endif
 
+#define NTT_partition_size 10
+
 namespace math
 {
 	namespace modulo{
@@ -108,9 +110,9 @@ namespace math
 		#endif
 		release();P=P0,G=G0;mx=max_conv_size;
 		fn=1;fb=0;while(fn<(max_conv_size<<1)) fn<<=1,++fb;
-		_inv=create_aligned_array<ui,32>(fn+32);ws0 =create_aligned_array<ui,32>(fn+32);
-		ws1 =create_aligned_array<ui,32>(fn+32);num =create_aligned_array<ui,32>(fn+32);
-		for(ui i=0;i<tmp_size;++i)	tt[i] =create_aligned_array<ui,32>(fn+32);
+		_inv=create_aligned_array<ui,64>(fn+32);ws0 =create_aligned_array<ui,64>(fn+32);
+		ws1 =create_aligned_array<ui,64>(fn+32);num =create_aligned_array<ui,64>(fn+32);
+		for(ui i=0;i<tmp_size;++i)	tt[i] =create_aligned_array<ui,64>(fn+32);
 		_inv[0]=li.v(1);for(ui i=2;i<=fn+32;++i) _inv[i-1]=li.mul(li.v(P-P/i),_inv[(P%i)-1]);
 		for(ui i=1;i<=fn+32;++i) num[i-1]=li.v(i);
 		ui j0=_fastpow(li.v(G),(P-1)/fn),j1=_fastpow(_fastpow(li.v(G),(P-2)),(P-1)/fn);
@@ -125,9 +127,9 @@ namespace math
 		la=d.la;
 		#endif
 		if(d.mx){
-			_inv=create_aligned_array<ui,32>(fn+32);ws0 =create_aligned_array<ui,32>(fn+32);
-			ws1 =create_aligned_array<ui,32>(fn+32);num =create_aligned_array<ui,32>(fn+32);
-			for(ui i=0;i<tmp_size;++i)	tt[i] =create_aligned_array<ui,32>(fn+32);
+			_inv=create_aligned_array<ui,64>(fn+32);ws0 =create_aligned_array<ui,64>(fn+32);
+			ws1 =create_aligned_array<ui,64>(fn+32);num =create_aligned_array<ui,64>(fn+32);
+			for(ui i=0;i<tmp_size;++i)	tt[i] =create_aligned_array<ui,64>(fn+32);
 			std::memcpy(ws0.get(), d.ws0.get(), sizeof(ui)*(fn+32));
 			std::memcpy(ws1.get(), d.ws1.get(), sizeof(ui)*(fn+32));
 			std::memcpy(_inv.get(),d._inv.get(),sizeof(ui)*(fn+32));
@@ -146,15 +148,15 @@ namespace math
 				ui restrict *p1=p+j,*p2=p+j+mid,*ww=ws+mid;
 				for(ui i=0;i<mid;++i,++p1,++p2,++ww) t1=*p1,t2=*p2,*p1=li.add(t1,t2),*p2=li.mul(li.sub(t1,t2),(*ww));
 			}
-		}else{
-			__m256i* pp=(__m256i*)p,x,y,*p1,*p2,*ww;
+		}else if(len<=(1<<NTT_partition_size)){
+			__m256i* pp=(__m256i*)p,*p1,*p2,*ww;
 			__m256i msk,val;
 			for(ui l=len;l>8;l>>=1){
 				ui mid=(l>>1);
 				for(ui j=0;j<len;j+=l){
 					p1=(__m256i*)(p+j),p2=(__m256i*)(p+j+mid),ww=(__m256i*)(ws+mid);
 					for(ui i=0;i<mid;i+=8,++p1,++p2,++ww){
-						x=*p1,y=*p2;
+						__m256i x=*p1,y=*p2;
 						*p1=la.add(x,y);
 						*p2=la.mul(la.sub(x,y),*ww);
 					}
@@ -165,26 +167,38 @@ namespace math
 			msk=_mm256_setr_epi32(0,0,0,0,P*2,P*2,P*2,P*2);
 			pp=(__m256i*)p;
 			for(ui j=0;j<len;j+=8,++pp){
-				x=_mm256_permute4x64_epi64(*pp,0x4E);
-				y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,1,1,1,-1,-1,-1,-1)),msk);
-				*pp=la.mul(la.redd(_mm256_add_epi32(x,y)),val);
+				__m256i x=_mm256_permute4x64_epi64(*pp,0x4E);
+				__m256i y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,1,1,1,-1,-1,-1,-1)),msk);
+				*pp=la.mul(la.add(x,y),val);
 			}
 			val=_mm256_setr_epi32(ws[2],ws[2],ws[2],ws[3],
 								  ws[2],ws[2],ws[2],ws[3]);
 			msk=_mm256_setr_epi32(0,0,P*2,P*2,0,0,P*2,P*2);
 			pp=(__m256i*)p;
 			for(ui j=0;j<len;j+=8,++pp){
-				x=_mm256_shuffle_epi32(*pp,0x4E);
-				y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,1,-1,-1,1,1,-1,-1)),msk);
-				*pp=la.mul(la.redd(_mm256_add_epi32(x,y)),val);
+				__m256i x=_mm256_shuffle_epi32(*pp,0x4E);
+				__m256i y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,1,-1,-1,1,1,-1,-1)),msk);
+				*pp=la.mul(la.add(x,y),val);
 			}
 			msk=_mm256_setr_epi32(0,P*2,0,P*2,0,P*2,0,P*2);
 			pp=(__m256i*)p;
 			for(ui j=0;j<len;j+=8,++pp){
-				x=_mm256_shuffle_epi32(*pp,0xB1);
-				y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,-1,1,-1,1,-1,1,-1)),msk);
-				*pp=la.redd(_mm256_add_epi32(x,y));
+				__m256i x=_mm256_shuffle_epi32(*pp,0xB1);
+				__m256i y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,-1,1,-1,1,-1,1,-1)),msk);
+				*pp=la.add(x,y);
 			}
+		}
+		else{
+			__m256i *p1=(__m256i*)(p),*p2=(__m256i*)(p+(len>>2)),*p3=(__m256i*)(p+(len>>1)),*p4=(__m256i*)(p+(len>>2)*3),*w1=(__m256i*)(ws0.get()+(len>>1)),
+			*w2=(__m256i*)(ws0.get()+(len>>1)+(len>>2)),*w3=(__m256i*)(ws0.get()+(len>>2));
+			for(ui i=0;i<(len>>2);i+=8,++p1,++p2,++p3,++p4,++w2,++w3,++w1){
+				__m256i x=(*(p1)),y=(*(p2)),z=(*(p3)),w=(*(p4));
+				__m256i r=la.add(x,z),s=la.mul(la.sub(x,z),*w1);
+				__m256i t=la.add(y,w),q=la.mul(la.sub(y,w),*w2);
+				(*(p1))=la.add(r,t);(*(p2))=la.mul(la.sub(r,t),*w3);
+				(*(p3))=la.add(s,q);(*(p4))=la.mul(la.sub(s,q),*w3);
+			}
+			dif(p,n-2);dif(p+(1<<(n-2)),n-2);dif(p+(1<<(n-1)),n-2);dif(p+(1<<(n-2))*3,n-2);
 		}
 		#else
 		ui len=(1<<n);
@@ -196,7 +210,7 @@ namespace math
 		}
 		#endif
 	}
-	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::dit(ui* restrict p,ui n){
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::dit(ui* restrict p,ui n,bool inverse_coef){
 		#if defined(__AVX__) && defined(__AVX2__)
 		ui len=(1<<n);
 		ui* restrict ws=ws1.get();
@@ -208,30 +222,30 @@ namespace math
 			}
 			ui co=_inv[len-1];ui* restrict p1=p;
 			for(ui i=0;i<len;++i,++p1) (*p1)=li.mul(co,(*p1));
-		}else{
-			__m256i* pp=(__m256i*)p,x,y,*p1,*p2,*ww;
+		}else if(len<=(1<<NTT_partition_size)){
+			__m256i* pp=(__m256i*)p,*p1,*p2,*ww;
 			__m256i msk,val;
 			msk=_mm256_setr_epi32(0,P*2,0,P*2,0,P*2,0,P*2);
 			pp=(__m256i*)p;
 			for(ui j=0;j<len;j+=8,++pp){
-				x=_mm256_shuffle_epi32(*pp,0xB1);
-				y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,-1,1,-1,1,-1,1,-1)),msk);
-				*pp=la.redd(_mm256_add_epi32(x,y));
+				__m256i x=_mm256_shuffle_epi32(*pp,0xB1);
+				__m256i y=_mm256_add_epi32(_mm256_sign_epi32(*pp,_mm256_setr_epi32(1,-1,1,-1,1,-1,1,-1)),msk);
+				*pp=la.add(x,y);
 			}
 			val=_mm256_setr_epi32(ws[2],ws[3],li.neg(ws[2]),li.neg(ws[3]),
 								  ws[2],ws[3],li.neg(ws[2]),li.neg(ws[3]));
 			pp=(__m256i*)p;
 			for(ui j=0;j<len;j+=8,++pp){
-				x=_mm256_shuffle_epi32(*pp,0x44);
-				y=_mm256_shuffle_epi32(*pp,0xEE);
+				__m256i x=_mm256_shuffle_epi32(*pp,0x44);
+				__m256i y=_mm256_shuffle_epi32(*pp,0xEE);
 				*pp=la.add(x,la.mul(y,val));
 			}
 			val=_mm256_setr_epi32(  ws[4],   ws[5],   ws[6],   ws[7],
 								  li.neg(ws[4]),li.neg(ws[5]),li.neg(ws[6]),li.neg(ws[7]));
 			pp=(__m256i*)p;
 			for(ui j=0;j<len;j+=8,++pp){
-				x=_mm256_permute4x64_epi64(*pp,0x44);
-				y=_mm256_permute4x64_epi64(*pp,0xEE);
+				__m256i x=_mm256_permute4x64_epi64(*pp,0x44);
+				__m256i y=_mm256_permute4x64_epi64(*pp,0xEE);
 				*pp=la.add(x,la.mul(y,val));
 			}
 			for(ui l=16;l<=len;l<<=1){
@@ -239,15 +253,36 @@ namespace math
 				for(ui j=0;j<len;j+=l){
 					p1=(__m256i*)(p+j),p2=(__m256i*)(p+j+mid),ww=(__m256i*)(ws+mid);
 					for(ui i=0;i<mid;i+=8,++p1,++p2,++ww){
-						x=*p1,y=la.mul(*p2,*ww);
+						__m256i x=*p1,y=la.mul(*p2,*ww);
 						*p1=la.add(x,y);
 						*p2=la.sub(x,y);
 					}
 				}
 			}
-			__m256i co=_mm256_set1_epi32(_inv[len-1]);
-			pp=(__m256i*)p;
-			for(ui i=0;i<len;i+=8,++pp) (*pp)=la.mul(*pp,co);
+			if(inverse_coef){
+				__m256i co=_mm256_set1_epi32(_inv[len-1]);
+				pp=(__m256i*)p;
+				for(ui i=0;i<len;i+=8,++pp) (*pp)=la.mul(*pp,co);
+			}
+		}
+		else{
+			dit(p,n-2,false);dit(p+(1<<(n-2)),n-2,false);dit(p+(1<<(n-1)),n-2,false);dit(p+(1<<(n-2))*3,n-2,false);
+			__m256i *p1=(__m256i*)(p),*p2=(__m256i*)(p+(len>>2)),*p3=(__m256i*)(p+(len>>1)),*p4=(__m256i*)(p+(len>>2)*3),*w1=(__m256i*)(ws+(len>>1)),
+			*w2=(__m256i*)(ws+(len>>1)+(len>>2)),*w3=(__m256i*)(ws+(len>>2));
+			for(ui i=0;i<(len>>2);i+=8,++p1,++p2,++p3,++p4,++w2,++w3,++w1){
+				__m256i x=(*(p1)),y=(*(p2)),z=(*(p3)),w=(*(p4));
+				__m256i h=la.mul(y,*w3),
+						k=la.mul(w,*w3);
+				__m256i	t=la.mul(la.add(z,k),*w1),q=la.mul(la.sub(z,k),*w2);
+				__m256i r=la.add(x,h),s=la.sub(x,h);
+				(*(p1))=la.add(r,t);(*(p2))=la.add(s,q);
+				(*(p3))=la.sub(r,t);(*(p4))=la.sub(s,q);
+			}
+			if(inverse_coef){
+				__m256i co=_mm256_set1_epi32(_inv[len-1]);
+				p1=(__m256i*)p;
+				for(ui i=0;i<len;i+=8,++p1) (*p1)=la.mul(*p1,co);
+			}
 		}
 		#else
 		ui len=(1<<n);
