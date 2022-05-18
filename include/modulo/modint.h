@@ -3,73 +3,22 @@
 * @mail   aixiaoyaowudi@gmail.com
 **/
 
-/* macros:
-* DO_NOT_IGNORE_WARNINGS:
-*     enables -Wunused-result
-* NO_PROGRESS:
-*     disable progress bar
-*/
+#ifndef _XIAOYAOWUDI_MATH_LIBRARY_MODULO_MODINT_H_
+#define _XIAOYAOWUDI_MATH_LIBRARY_MODULO_MODINT_H_
 
-#ifndef _XIAOYAOWUDI_PROJECT_EULER_MATH_LIBRARY_
-#define _XIAOYAOWUDI_PROJECT_EULER_MATH_LIBRARY_
-
-#if __cplusplus < 201703L
-#error "Require C++17 to Compile"
-#endif
-
-#ifndef DO_NOT_IGNORE_WARNINGS
-#pragma GCC diagnostic ignored "-Wunused-result"
-#endif
+#include <type/basic_typedef.h>
 #include <immintrin.h>
-#include <stdint.h>
 #include <iostream>
-#if defined(__INTEL_COMPILER)
-#include <aligned_new>
-#define assume_aligned(a,b) __assume_aligned((a),(b))
-#elif defined(__GNUC__)
-#define assume_aligned(a,b) ((a)=__builtin_assume_aligned((a),(b)))
-#define restrict
-#include <new>
-#else
-#error "only gnu compiler or intel compiler is supported"
+
+#if defined(_OPENMP)
+#include <omp.h>
 #endif
-#include <vector>
-#include <chrono>
-#include <thread>
-#include <iomanip>
-#include <stdexcept>
-#include <cstring>
-#include <random>
-#include <algorithm>
-#include <functional>
-#include <ext/pb_ds/assoc_container.hpp>
-#include <ext/pb_ds/hash_policy.hpp>
-#include <array>
-#include <type_traits>
-#include <tuple>
 
 namespace math
 {
-	typedef uint32_t ui;
-	typedef int32_t i32;
-	typedef int64_t ll;
-	typedef uint64_t ull;
-	typedef __uint128_t u128;
-	template<typename T,size_t align_val>
-	struct aligned_delete {
-		void operator()(T* ptr) const {
-			operator delete[](ptr,std::align_val_t(align_val));
-		}
-	};
-	template<typename T,size_t align_val>
-	using aligned_array=std::unique_ptr<T[],aligned_delete<T,align_val>>;
-	template<typename T, size_t align_val>
-	aligned_array<T,align_val> create_aligned_array(size_t size){
-		return aligned_array<T,align_val>(new(std::align_val_t(align_val)) T[size]);
-	}
 	namespace modulo
 	{
-		namespace mod_int
+		namespace modint
 		{
 			struct fast_mod_32 {
 				ull b, m;
@@ -255,210 +204,24 @@ namespace math
 			#endif
 		}
 	}
-	using modulo::mod_int::mi;
-	using modulo::mod_int::mli;
-	using modulo::mod_int::set_mod_mi;
-	using modulo::mod_int::set_mod_mli;
-	using modulo::mod_int::global_mod_mi;
-	using modulo::mod_int::global_mod_mli;
-	using modulo::mod_int::default_mod;
-	using modulo::mod_int::lmi;
+	using modulo::modint::mi;
+	using modulo::modint::mli;
+	using modulo::modint::set_mod_mi;
+	using modulo::modint::set_mod_mli;
+	using modulo::modint::global_mod_mi;
+	using modulo::modint::global_mod_mli;
+	using modulo::modint::default_mod;
+	using modulo::modint::lmi;
 	#if defined(__AVX__) && defined(__AVX2__)
-	using modulo::mod_int::mai;
-	using modulo::mod_int::global_mod_mai;
-	using modulo::mod_int::set_mod_mai;
-	using modulo::mod_int::lma;
+	using modulo::modint::mai;
+	using modulo::modint::global_mod_mai;
+	using modulo::modint::set_mod_mai;
+	using modulo::modint::lma;
 	#endif
 	#if defined(__AVX512F__) && defined(__AVX512DQ__)
-	using modulo::mod_int::m5i;
-	using modulo::mod_int::lm5;
+	using modulo::modint::m5i;
+	using modulo::modint::lm5;
 	#endif
-	namespace traits
-	{
-		template<typename X, typename Y,typename T,typename Op>
-		struct op_valid_helper
-		{
-			template<typename U, typename L, typename R,typename G>
-			static auto test(int) -> std::is_same<std::remove_cv_t<std::remove_reference_t<
-			decltype(std::declval<U>()(std::declval<std::add_lvalue_reference_t<std::remove_cv_t<std::remove_reference_t<R>>>>(),
-					 std::declval<std::add_lvalue_reference_t<std::remove_cv_t<std::remove_reference_t<R>>>>()))>>,
-			std::remove_cv_t<std::remove_reference_t<G>>>;
-			template<typename U, typename L, typename R,typename G>
-			static auto test(...) -> std::false_type;
-			using type = decltype(test<Op, X, Y,T>(0));
-		};
-		template<typename X, typename Y,typename W,typename Op> using op_valid = typename op_valid_helper<X,Y,W,Op>::type;
-		template<typename X, typename Y,typename W,typename Op> constexpr bool op_valid_v=op_valid<X,Y,W,Op>::value;
-		template<typename X, typename Y,typename T,typename Op>
-		struct const_op_valid_helper
-		{
-			template<typename U, typename L, typename R,typename G>
-			static auto test(int) -> std::is_same<std::remove_cv_t<std::remove_reference_t<
-			decltype(std::declval<U>()(std::declval<std::add_lvalue_reference_t<std::add_const_t<std::remove_cv_t<std::remove_reference_t<L>>>>>(),
-					 std::declval<std::add_lvalue_reference_t<std::add_const_t<std::remove_cv_t<std::remove_reference_t<R>>>>>()))>>,
-			std::remove_cv_t<std::remove_reference_t<G>>>;
-			template<typename U, typename L, typename R,typename G>
-			static auto test(...) -> std::false_type;
-			using type = decltype(test<Op, X, Y,T>(0));
-		};
-		template<typename X, typename Y,typename W,typename Op> using const_op_valid = typename const_op_valid_helper<X,Y,W,Op>::type;
-		template<typename X, typename Y,typename W,typename Op> constexpr bool const_op_valid_v=const_op_valid<X,Y,W,Op>::value;
-		template<typename T> struct is_mod_int:std::false_type{};
-		template<> struct is_mod_int<mi>:std::true_type{};
-		template<> struct is_mod_int<mli>:std::true_type{};
-		#if defined(__AVX__) && defined(__AVX2__)
-		template<> struct is_mod_int<mai>:std::true_type{};
-		#endif
-		#if defined(__AVX512F__) && defined(__AVX512DQ__)
-		template<> struct is_mod_int<m5i>:std::true_type{};
-		#endif
-		template<typename T> constexpr bool is_mod_int_v=is_mod_int<T>::value;
-		template<typename T>
-		struct has_unit_value_helper
-		{
-			template<typename G> static auto test(int) -> typename std::enable_if<(std::is_arithmetic_v<G> || is_mod_int_v<G>),std::true_type>::type;
-			template<typename G> static auto test(...) -> std::false_type;
-			using type=decltype(test<T>(0));
-		};
-		template<typename T> using has_unit_value=typename has_unit_value_helper<T>::type;
-		template<typename T> constexpr bool has_unit_value_v=has_unit_value<T>::value;
-		template<typename T,typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-		T unit_value(){return 1;}
-		template<typename T,typename std::enable_if<is_mod_int<T>::value>::type* = nullptr>
-		T unit_value(){return T(1);}
-		namespace integer_helper
-		{
-			template<typename T> struct type_helper{typedef T type;};
-			template<size_t N> struct size_int:size_int<N+1>{};
-			template<> struct size_int<8>:type_helper<int8_t>{};
-			template<> struct size_int<16>:type_helper<int16_t>{};
-			template<> struct size_int<32>:type_helper<int32_t>{};
-			template<> struct size_int<64>:type_helper<int64_t>{};
-			template<> struct size_int<128>:type_helper<__int128>{};
-			template<size_t N> using size_int_t=typename size_int<N>::type;
-			template<size_t N> struct size_uint:size_uint<N+1>{};
-			template<> struct size_uint<8>:type_helper<uint8_t>{};
-			template<> struct size_uint<16>:type_helper<uint16_t>{};
-			template<> struct size_uint<32>:type_helper<uint32_t>{};
-			template<> struct size_uint<64>:type_helper<uint64_t>{};
-			template<> struct size_uint<128>:type_helper<__uint128_t>{};
-			template<size_t N> using size_uint_t=typename size_uint<N>::type;
-			template<typename T,typename std::enable_if<std::is_integral<T>::value>::type* =nullptr> struct double_width_int:size_int<2*sizeof(T)*8>{};
-			template<typename T> using double_width_int_t=typename double_width_int<T>::type;
-			template<typename T,typename std::enable_if<std::is_integral<T>::value>::type* =nullptr> struct double_width_uint:size_uint<2*sizeof(T)*8>{};
-			template<typename T> using double_width_uint_t=typename double_width_uint<T>::type;
-		}
-	}
-	namespace basic
-	{
-		template<typename B,typename U>
-		typename std::enable_if<(traits::const_op_valid_v<B,B,B,std::multiplies<>> &&
-								 std::is_move_assignable_v<std::remove_cv_t<std::remove_reference_t<B>>> &&
-								 traits::has_unit_value_v<std::remove_cv_t<std::remove_reference_t<B>>> &&
-								 std::is_integral_v<std::remove_cv_t<std::remove_reference_t<U>>>),
-								 std::remove_cv_t<std::remove_reference_t<B>>>::type
-		fast_pow(B b,U u){
-			typedef typename std::make_unsigned_t<std::remove_cv_t<std::remove_reference_t<U>>> UU;
-			typedef typename std::remove_cv_t<std::remove_reference_t<B>> BB;
-			UU u0=static_cast<UU>(u);BB ans=traits::unit_value<BB>(),off=b;
-			while(u0){if(u0&1) ans=ans*off;off=off*off;u0>>=1;}return ans;
-		}
-		template<typename B,typename U,typename M>
-		typename std::enable_if<(std::is_integral_v<std::remove_cv_t<std::remove_reference_t<B>>> &&
-								 std::is_integral_v<std::remove_cv_t<std::remove_reference_t<U>>> &&
-								 std::is_integral_v<std::remove_cv_t<std::remove_reference_t<M>>>),
-								 traits::integer_helper::size_uint_t<sizeof(std::remove_cv_t<std::remove_reference_t<M>>)*8>>::type
-		fast_pow(B b,U u,M m){
-			typedef typename std::make_unsigned_t<std::remove_cv_t<std::remove_reference_t<U>>> UU;
-			typedef typename traits::integer_helper::double_width_uint_t<std::remove_cv_t<std::remove_reference_t<M>>> MM;
-			typedef typename traits::integer_helper::size_uint_t<sizeof(std::remove_cv_t<std::remove_reference_t<M>>)*8> M0;
-			UU u0=static_cast<UU>(u);M0 ans=1,off=static_cast<M0>(b%m),md=static_cast<M0>(m);
-			while(u0){if(u0&1) ans=(MM)ans*off%md;off=(MM)off*off%md;u0>>=1;}return ans;
-		}
-	}
-	namespace power_series_ring
-	{
-		typedef std::vector<mi> poly;
-		namespace polynomial_kernel
-		{
-			class polynomial_kernel;
-			class polynomial_kernel_ntt
-			{
-			private:
-				static constexpr ui tmp_size=9;
-				aligned_array<ui,64> ws0,ws1,_inv,tt[tmp_size],num;ui P,G;
-				ui fn,fb,mx;
-				void release();
-				ui _fastpow(ui a,ui b);
-				void dif(ui* restrict arr,ui n);
-				void dit(ui* restrict arr,ui n,bool last_layer=true);
-				void dif_xni(ui* restrict arr,ui n);
-				void dit_xni(ui* restrict arr,ui n);
-				void internal_mul(ui* restrict src1,ui* restrict src2,ui* restrict dst,ui m);
-				void internal_inv(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui len);
-				void internal_inv_faster(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui* restrict tmp3,ui len);
-				void internal_ln(ui* restrict src,ui* restrict dst,ui* restrict tmp1,ui* restrict tmp2,ui* restrict tmp3,ui len);
-				void internal_ln_faster(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui* restrict tmp3,ui* restrict tmp4,ui len);
-				void internal_exp(ui* restrict src,ui* restrict dst,ui* restrict gn,ui* restrict gxni,
-								  ui* restrict h,ui* restrict tmp1,ui* restrict tmp2,ui* restrict tmp3,ui len,bool calc_h=false);
-				lmi li;
-				#if defined(__AVX__) && defined(__AVX2__)
-				lma la;
-				#endif
-				#if defined(__AVX512F__) && defined(__AVX512DQ__)
-				lm5 l5;
-				#endif
-			public:
-				friend class polynomial_kernel;
-				polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0);
-				void init(ui max_conv_size,ui P0,ui G0);
-				polynomial_kernel_ntt(const polynomial_kernel_ntt &d);
-				polynomial_kernel_ntt();
-				~polynomial_kernel_ntt();
-				poly mul(const poly &a,const poly &b);
-				poly inv(const poly &src);
-				poly ln(const poly &src);
-				poly exp(const poly &src);
-				std::array<long long,7> test(ui T);
-			};
-		}
-	}
 }
-namespace tools
-{
-	class timer{
-	private:
-		typedef std::chrono::high_resolution_clock clock;
-		typedef std::chrono::duration<double, std::ratio<1> > second;
-		std::chrono::time_point<clock> start_time;
-		double accumulated_time;
-		bool running;
-	public:
-		timer();
-		void start();
-		double stop();
-		double accumulated();
-		double lap();
-		void reset();
-		bool get_state();
-	};
-	class progress_bar{
-	private:
-		uint32_t total_work;
-		uint32_t next_update;
-		uint32_t call_diff;
-		uint32_t work_done;
-		uint16_t old_percent;
-		timer    _timer;
-		void clear_console_line() const;
-	public:
-		void start(uint32_t total_work);
-		void update(uint32_t work_done0,bool is_dynamic=true);
-		progress_bar& operator++();
-		double stop();
-		double time_it_took();
-		uint32_t cells_processed() const;
-		~progress_bar();
-	};
-}
+
 #endif

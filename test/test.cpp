@@ -1,14 +1,16 @@
-#include <pe.hpp>
+#include <math_library.h>
 #include <assert.h>
 #include <random>
 #include <iostream>
 #include <thread>
 #include <chrono>
+#if defined(_OPENMP)
 #include <omp.h>
+#endif
 using namespace math;
 int main(){
 	{
-		// std::cerr<<"Start single thread NTT test"<<std::endl;
+		std::cerr<<"Start single thread NTT test"<<std::endl;
 		constexpr ui test_size=(1<<21),T=100;
 		power_series_ring::polynomial_kernel::polynomial_kernel_ntt p((test_size<<1),default_mod,3);
 		// power_series_ring::poly a(20);
@@ -55,7 +57,7 @@ int main(){
 	std::this_thread::sleep_for(std::chrono::seconds(2));
 	{
 		std::cerr<<"Start mod_int test"<<std::endl;
-		using namespace modulo::mod_int;
+		using namespace modulo::modint;
 		{
 			constexpr ui  omp_test_mod_mi  = 1000000007,
 			              omp_calc_mod_mi  = 1000000009;
