@@ -36,6 +36,29 @@ namespace math
 			UU u0=static_cast<UU>(u);M0 ans=1,off=static_cast<M0>(b%m),md=static_cast<M0>(m);
 			while(u0){if(u0&1) ans=(MM)ans*off%md;off=(MM)off*off%md;u0>>=1;}return ans;
 		}
+		template<typename B,typename U>
+		typename std::enable_if<((!traits::const_op_valid_v<B,B,B,std::multiplies<>>) &&
+								 traits::const_op_valid_v<B,B,B,std::plus<>> &&
+								 std::is_move_assignable_v<std::remove_cv_t<std::remove_reference_t<B>>> &&
+								 std::is_integral_v<std::remove_cv_t<std::remove_reference_t<U>>>),
+								 std::remove_cv_t<std::remove_reference_t<B>>>::type
+		fast_pow(B b,U u){
+			typedef typename std::make_unsigned_t<std::remove_cv_t<std::remove_reference_t<U>>> UU;
+			typedef typename std::remove_cv_t<std::remove_reference_t<B>> BB;
+			UU u0=static_cast<UU>(u);BB ans,off=b;
+			while(u0){if(u0&1) ans=ans+off;off=off+off;u0>>=1;}return ans;
+		}
+		template<typename B,typename U>
+		typename std::enable_if<(traits::const_op_valid_v<B,B,B,std::plus<>> &&
+								 std::is_move_assignable_v<std::remove_cv_t<std::remove_reference_t<B>>> &&
+								 std::is_integral_v<std::remove_cv_t<std::remove_reference_t<U>>>),
+								 std::remove_cv_t<std::remove_reference_t<B>>>::type
+		fast_mul(B b,U u){
+			typedef typename std::make_unsigned_t<std::remove_cv_t<std::remove_reference_t<U>>> UU;
+			typedef typename std::remove_cv_t<std::remove_reference_t<B>> BB;
+			UU u0=static_cast<UU>(u);BB ans,off=b;
+			while(u0){if(u0&1) ans=ans+off;off=off+off;u0>>=1;}return ans;
+		}
 	}
 }
 

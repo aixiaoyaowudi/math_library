@@ -60,6 +60,8 @@ namespace math
 		};
 		template<typename X, typename Y,typename W,typename Op> using const_op_valid = typename const_op_valid_helper<X,Y,W,Op>::type;
 		template<typename X, typename Y,typename W,typename Op> constexpr bool const_op_valid_v=const_op_valid<X,Y,W,Op>::value;
+		template<typename F,typename R,typename... A> using func_call_valid = typename std::is_invocable_r<R,F,A...>::type;
+		template<typename F,typename R,typename... A> constexpr bool func_call_valid_v=func_call_valid<F,R,A...>::value;
 		template<typename T> struct is_mod_int:std::false_type{};
 		template<> struct is_mod_int<mi>:std::true_type{};
 		template<> struct is_mod_int<mli>:std::true_type{};
