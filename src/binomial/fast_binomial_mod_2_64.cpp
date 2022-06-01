@@ -5,15 +5,18 @@
 
 #include <binomial/fast_binomial_mod_2_64.h>
 #include <basic/fast_pow.h>
+#include <binomial/constants/coefs_for_fast_binomial_2_64>
 
 namespace math
 {
-	ull binomial::fast_binomial_mod_2_64::calc_bju(ull j,ull u){
+	static constexpr __uint128_t coefs[32][32]=coefs_for_fast_binomial_2_64;
+	static constexpr ull bases[32]=coefs_for_fast_binomial_2_64_bases;
+	static ull calc_bju(ull j,ull u){
 		__uint128_t cur=0,u2=__uint128_t(u)*u;
 		for(ui i=31;~i;--i) cur=cur*u2+coefs[j][i];cur*=u;
 		return basic::fast_pow(bases[j],(ull)(cur>>64));
 	}
-	ull binomial::fast_binomial_mod_2_64::odd_factorial(ull k){
+	static ull odd_factorial(ull k){
 		ull ans=1;ull k0=(k>>1);if(k&1) ++k0;
 		for(ui j=0;j<32;++j) ans*=calc_bju(j,k0);
 		if((ans&2)!=((k0+1)&2)) ans=-ans;
