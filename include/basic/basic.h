@@ -8,5 +8,6 @@
 
 #include <basic/fast_pow.h>
 #include <basic/binary_search.h>
+#include <basic/gcd.h>
 
 #endif

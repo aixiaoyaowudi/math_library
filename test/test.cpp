@@ -10,6 +10,54 @@
 using namespace math;
 int main(){
 	{
+		std::cerr<<"Start prime & factorization test"<<std::endl;ui cnt=0;
+		{
+			std::mt19937_64 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+			constexpr ull rgl=1e14,rgr=2e14,T=20000;
+			std::uniform_int_distribution<ull> rnd{rgl,rgr};
+			for(ui i=0;i<T;++i){
+				ull k=rnd(rng);
+				bool mlj=factorization::miller_rabin_u64(k);
+				auto fd=factorization::pollard_rho_factorize_u64(k);
+				bool cap=true;
+				std::vector<std::pair<ull,ui>> md;
+				for(ull i=2;i*i<=k;++i) if((k%i)==0){
+					ui c=0;
+					while((k%i)==0) k/=i,++c;
+					md.push_back(std::make_pair(i,c));
+					cap=false;
+				}
+				if(k!=1) md.push_back(std::make_pair(k,1));
+				assert(cap==mlj);
+				assert(fd==md);
+				cnt+=(cap?1:0);
+			}
+		}
+		{
+			std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+			constexpr ui rgl=1e9,rgr=2e9,T=20000;
+			std::uniform_int_distribution<ui> rnd{rgl,rgr};
+			for(ui i=0;i<T;++i){
+				ui k=rnd(rng);
+				bool mlj=factorization::miller_rabin_u32(k);
+				auto fd=factorization::pollard_rho_factorize_u32(k);
+				bool cap=true;
+				std::vector<std::pair<ui,ui>> md;
+				for(ui i=2;i*i<=k;++i) if((k%i)==0){
+					ui c=0;
+					while((k%i)==0) k/=i,++c;
+					md.push_back(std::make_pair(i,c));
+					cap=false;
+				}
+				if(k!=1) md.push_back(std::make_pair(k,1));
+				assert(cap==mlj);
+				assert(fd==md);
+				cnt+=(cap?1:0);
+			}
+		}
+		std::cerr<<"Total:"<<cnt<<" primes.\nEnd prime test"<<std::endl;
+	}
+	{
 		std::cerr<<"Start single thread NTT test"<<std::endl;
 		constexpr ui test_size=(1<<21),T=100;
 		power_series_ring::polynomial_kernel::polynomial_kernel_ntt p((test_size<<1),default_mod,3);
@@ -101,7 +149,10 @@ int main(){
 			#pragma omp parallel
 			#endif
 			{
-				std::mt19937 mi_rng,mai_rng,m5i_rng;std::mt19937_64 mli_rng;
+				std::mt19937	mi_rng (std::chrono::high_resolution_clock::now().time_since_epoch().count()),
+								mai_rng(std::chrono::high_resolution_clock::now().time_since_epoch().count()),
+								m5i_rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+				std::mt19937_64 mli_rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 				std::uniform_int_distribution<ui> mi_uid{0,omp_calc_mod_mi-1},
 												  mai_uid{0,omp_calc_mod_mai-1},
 												  m5i_uid{0,omp_calc_mod_m5i-1};
