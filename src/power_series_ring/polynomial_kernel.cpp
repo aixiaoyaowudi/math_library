@@ -9,6 +9,7 @@
 #include <random>
 #include <cstring>
 #include <cassert>
+#include <algorithm>
 #include <type/basic_typedef.h>
 
 #define NTT_partition_size 10
@@ -407,6 +408,12 @@ namespace math
 		#endif
 		dit(dst,m);
 	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_transpose_mul(ui* restrict src1,ui* restrict src2,ui* restrict dst,ui m)
+	{
+		std::reverse(src1,src1+(1<<m));
+		internal_mul(src1,src2,dst,m);
+		std::reverse(dst,dst+(1<<m));
+	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::mul(const power_series_ring::poly &a,const power_series_ring::poly &b){
 		ui la=a.size(),lb=b.size();if((!la) && (!lb)) return poly();
 		if(la>mx || lb>mx) throw std::runtime_error("Convolution size out of range!");
@@ -416,6 +423,17 @@ namespace math
 		internal_mul(tt[0].get(),tt[1].get(),tt[2].get(),m);
 		poly ret(la+lb-1);
 		std::memcpy(&ret[0],tt[2].get(),sizeof(ui)*(la+lb-1));
+		return ret;
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::transpose_mul(const power_series_ring::poly &a,const power_series_ring::poly &b){
+		ui la=a.size(),lb=b.size();if((!la) && (!lb)) return poly();
+		if(la>mx || lb>mx) throw std::runtime_error("Convolution size out of range!");
+		ui m=0;if(la+lb>2) m=32-__builtin_clz(la+lb-2);
+		std::memcpy(tt[0].get(),&a[0],sizeof(ui)*la);std::memset(tt[0].get()+la,0,sizeof(ui)*((1<<m)-la));
+		std::memcpy(tt[1].get(),&b[0],sizeof(ui)*lb);std::memset(tt[1].get()+lb,0,sizeof(ui)*((1<<m)-lb));
+		internal_transpose_mul(tt[0].get(),tt[1].get(),tt[2].get(),m);
+		poly ret(la);
+		std::memcpy(&ret[0],tt[2].get(),sizeof(ui)*(la));
 		return ret;
 	}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_inv(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui len){//10E(n) x^n->x^{2n}
@@ -559,7 +577,7 @@ namespace math
 	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::inv(const power_series_ring::poly &src){
 		ui la=src.size();if(!la) throw std::runtime_error("Inversion calculation of empty polynomial!");
-		if((la*4)>fn) throw std::runtime_error("Convolution size out of range!");
+		if((la*4)>fn) throw std::runtime_error("Inversion calculation size out of range!");
 		if(!li.rv(src[0].get_val())){
 			throw std::runtime_error("Inversion calculation of polynomial which has constant not equal to 1!");
 		}
@@ -706,7 +724,7 @@ namespace math
 	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::ln(const poly &src){
 		ui la=src.size();if(!la) throw std::runtime_error("Ln calculation of empty polynomial!");
-		if((la*2)>fn) throw std::runtime_error("Convolution size out of range!");
+		if((la*2)>fn) throw std::runtime_error("Ln calculation size out of range!");
 		if(li.rv(src[0].get_val())!=1){
 			throw std::runtime_error("Ln calculation of polynomial which has constant not equal to 1!");
 		}
@@ -890,7 +908,7 @@ namespace math
 	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::exp(const poly &src){
 		ui la=src.size();if(!la) throw std::runtime_error("Exp calculation of empty polynomial!");
-		if((la*2)>fn) throw std::runtime_error("Convolution size out of range!");
+		if((la*2)>fn) throw std::runtime_error("Exp calculation size out of range!");
 		if(li.rv(src[0].get_val())!=0){
 			throw std::runtime_error("Exp calculation of polynomial which has constant not equal to 0!");
 		}
@@ -939,5 +957,41 @@ namespace math
 			 ln_faster_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_faster_end-ln_faster_start),
 			 exp_duration=std::chrono::duration_cast<std::chrono::microseconds>(exp_end-exp_start);
 		return {dif_duration.count(),dit_duration.count(),inv_duration.count(),inv_faster_duration.count(),ln_duration.count(),ln_faster_duration.count(),exp_duration.count()};
+	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_multipoint_eval_interpolation_calc_Q(std::vector<poly> &Q_storage,const poly &input_coef,ui l,ui r,ui id){
+		if(l==r){
+			Q_storage[id]={1,-input_coef[l]};
+			return;
+		}
+		ui mid=(l+r)>>1;
+		internal_multipoint_eval_interpolation_calc_Q(Q_storage,input_coef,l,mid,id<<1);
+		internal_multipoint_eval_interpolation_calc_Q(Q_storage,input_coef,mid+1,r,id<<1|1);
+		Q_storage[id]=mul(Q_storage[id<<1],Q_storage[id<<1|1]);
+	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_multipoint_eval_interpolation_calc_P(const std::vector<poly> &Q_storage,std::vector<poly> &P_stack,
+																													poly &result_coef,ui l,ui r,ui id,ui dep){
+		if(l==r){
+			result_coef[l]=P_stack[dep][0];
+			return;
+		}
+		if(P_stack[dep].size()>(r-l+1)) P_stack[dep].resize(r-l+1);
+		ui mid=(l+r)>>1;
+		P_stack[dep+1]=transpose_mul(P_stack[dep],Q_storage[id<<1|1]);
+		internal_multipoint_eval_interpolation_calc_P(Q_storage,P_stack,result_coef,l,mid,id<<1,dep+1);
+		P_stack[dep+1]=transpose_mul(P_stack[dep],Q_storage[id<<1]);
+		internal_multipoint_eval_interpolation_calc_P(Q_storage,P_stack,result_coef,mid+1,r,id<<1|1,dep+1);
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::multipoint_eval_interpolation(const poly &a,const poly &b){
+		ui point_count=b.size(),poly_count=a.size(),maxnm=std::max(point_count,poly_count);
+		if(!poly_count) throw std::runtime_error("Multipoint eval interpolation of empty polynomial!");
+		if(maxnm>mx) throw std::runtime_error("Multipoint eval interpolation size out of range!");
+		if(!point_count) return {};
+		std::vector<poly> Q_storage(point_count<<2),P_stack((32-__builtin_clz(point_count))*2);
+		internal_multipoint_eval_interpolation_calc_Q(Q_storage,b,0,point_count-1,1);
+		poly ans(point_count);
+		Q_storage[1].resize(maxnm);
+		P_stack[0]=transpose_mul(a,inv(Q_storage[1]));
+		internal_multipoint_eval_interpolation_calc_P(Q_storage,P_stack,ans,0,point_count-1,1,0);
+		return ans;
 	}
 }

@@ -33,12 +33,15 @@ namespace math
 				void dif_xni(ui* restrict arr,ui n);
 				void dit_xni(ui* restrict arr,ui n);
 				void internal_mul(ui* restrict src1,ui* restrict src2,ui* restrict dst,ui m);
+				void internal_transpose_mul(ui* restrict src1,ui* restrict src2,ui* restrict dst,ui m);
 				void internal_inv(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui len);
 				void internal_inv_faster(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui* restrict tmp3,ui len);
 				void internal_ln(ui* restrict src,ui* restrict dst,ui* restrict tmp1,ui* restrict tmp2,ui* restrict tmp3,ui len);
 				void internal_ln_faster(ui* restrict src,ui* restrict dst,ui* restrict tmp,ui* restrict tmp2,ui* restrict tmp3,ui* restrict tmp4,ui len);
 				void internal_exp(ui* restrict src,ui* restrict dst,ui* restrict gn,ui* restrict gxni,
 								  ui* restrict h,ui* restrict tmp1,ui* restrict tmp2,ui* restrict tmp3,ui len,bool calc_h=false);
+				void internal_multipoint_eval_interpolation_calc_Q(std::vector<poly> &Q_storage,const poly &input_coef,ui l,ui r,ui id);
+				void internal_multipoint_eval_interpolation_calc_P(const std::vector<poly> &Q_storage,std::vector<poly> &P_stack,poly &result_coef,ui l,ui r,ui id,ui dep);
 				lmi li;
 				#if defined(__AVX__) && defined(__AVX2__)
 				lma la;
@@ -54,6 +57,8 @@ namespace math
 				polynomial_kernel_ntt();
 				~polynomial_kernel_ntt();
 				poly mul(const poly &a,const poly &b);
+				poly transpose_mul(const poly &a,const poly &b);
+				poly multipoint_eval_interpolation(const poly &a,const poly &b);
 				poly inv(const poly &src);
 				poly ln(const poly &src);
 				poly exp(const poly &src);
