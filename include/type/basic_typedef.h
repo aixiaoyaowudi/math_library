@@ -8,9 +8,10 @@
 
 #if defined(__INTEL_COMPILER)
 #define assume_aligned(a,b) __assume_aligned((a),(b))
+#define restrict __restrict
 #else
 #define assume_aligned(a,b) ((a)=__builtin_assume_aligned((a),(b)))
-#define restrict
+#define restrict __restrict
 #endif
 
 #include <cstdint>

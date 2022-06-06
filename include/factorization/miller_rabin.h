@@ -14,6 +14,8 @@ namespace math
 	{
 		bool miller_rabin_u32(ui k);
 		bool miller_rabin_u64(ull k);
+		ui miller_rabin_next_prime_u32(ui k);
+		ull miller_rabin_next_prime_u64(ull k);
 	}
 }
 

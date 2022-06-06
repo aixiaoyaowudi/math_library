@@ -42,5 +42,13 @@ namespace math
 			}
 			return true;
 		}
+		ui miller_rabin_next_prime_u32(ui k){
+			while(!miller_rabin_u32(k)) ++k;
+			return k;
+		}
+		ull miller_rabin_next_prime_u64(ull k){
+			while(!miller_rabin_u64(k)) ++k;
+			return k;
+		}
 	}
 }

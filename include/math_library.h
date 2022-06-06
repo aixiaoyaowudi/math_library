@@ -22,5 +22,6 @@
 #include <basic/basic.h>
 #include <power_series_ring/power_series_ring.h>
 #include <factorization/factorization.h>
+#include <init/init.h>
 
 #endif
