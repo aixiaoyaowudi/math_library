@@ -59,46 +59,52 @@ int main(){
 	}
 	{
 		std::cerr<<"Start single thread NTT test"<<std::endl;
-		constexpr ui test_size=(1<<21),T=100;
+		constexpr ui test_size=(1<<20),T=20;
 		power_series_ring::polynomial_kernel::polynomial_kernel_ntt p((test_size<<1),default_mod,3);
-		// power_series_ring::poly a(20);
-		// for(int i=0;i<20;++i) a[i]=mi((i+1)*(i+1));
-		// a=p.ln(a);
-		// for(auto &&v:a) printf("%u ",v.real_val());printf("\n");
+		constexpr ui other_mod=1000000007;
+		modulo::modint::set_mod_mi(other_mod);
 		auto r=p.test(T);
+		modulo::modint::set_mod_mi(default_mod);
 		std::cerr<<"NTT test of size "<<test_size<<std::endl;
-		std::cerr<<"Dif         x"<<T<<" finished in "<<r[0]<<"us"<<std::endl;
-		std::cerr<<"Dit         x"<<T<<" finished in "<<r[1]<<"us"<<std::endl;
-		std::cerr<<"Inv         x"<<T<<" finished in "<<r[2]<<"us"<<std::endl;
-		std::cerr<<"Inv(faster) x"<<T<<" finished in "<<r[3]<<"us"<<std::endl;
-		std::cerr<<"Ln          x"<<T<<" finished in "<<r[4]<<"us"<<std::endl;
-		std::cerr<<"Ln(faster)  x"<<T<<" finished in "<<r[5]<<"us"<<std::endl;
-		std::cerr<<"Exp         x"<<T<<" finished in "<<r[6]<<"us"<<std::endl;
+		std::cerr<<"Dif                           x"<<T<<" finished in "<<r[0]<<"us"<<std::endl;
+		std::cerr<<"Dit                           x"<<T<<" finished in "<<r[1]<<"us"<<std::endl;
+		std::cerr<<"Inv                           x"<<T<<" finished in "<<r[2]<<"us"<<std::endl;
+		std::cerr<<"Inv(faster)                   x"<<T<<" finished in "<<r[3]<<"us"<<std::endl;
+		std::cerr<<"Ln                            x"<<T<<" finished in "<<r[4]<<"us"<<std::endl;
+		std::cerr<<"Ln(faster)                    x"<<T<<" finished in "<<r[5]<<"us"<<std::endl;
+		std::cerr<<"Exp                           x"<<T<<" finished in "<<r[6]<<"us"<<std::endl;
+		std::cerr<<"Multipoint eval interpolation x"<<T<<" finished in "<<r[7]<<"us"<<std::endl;
+		std::cerr<<"Lagrange interpolation        x"<<T<<" finished in "<<r[8]<<"us"<<std::endl;
 		std::cerr<<"End single thread NTT test"<<std::endl;
 	}
 	#if defined(_OPENMP)
 	{
 		std::cerr<<"Start multiple thread NTT test"<<std::endl;
-		std::array<long long,7> time_cost={0,0,0,0,0,0,0};int nt;
-		constexpr ui test_size=(1<<21),T=100;
+		std::array<long long,9> time_cost={0,0,0,0,0,0,0,0,0};int nt;
+		constexpr ui test_size=(1<<20),T=20;
 		power_series_ring::polynomial_kernel::polynomial_kernel_ntt p((test_size<<1),default_mod,3);
+		constexpr ui other_mod=1000000007;
+		modulo::modint::set_mod_for_all_threads_mi(other_mod);
 		#pragma omp parallel firstprivate(p)
 		{
 			auto r=p.test(T);
 			#pragma omp critical
 			{
-				for(ui i=0;i<7;++i) time_cost[i]+=r[i];
+				for(ui i=0;i<9;++i) time_cost[i]+=r[i];
 				nt=omp_get_num_threads();
 			}
 		}
+		modulo::modint::set_mod_for_all_threads_mi(default_mod);
 		std::cerr<<"NTT test of size "<<test_size<<std::endl;
-		std::cerr<<"Dif         x"<<T<<" finished in "<<time_cost[0]/nt<<"us in average"<<std::endl;
-		std::cerr<<"Dit         x"<<T<<" finished in "<<time_cost[1]/nt<<"us in average"<<std::endl;
-		std::cerr<<"Inv         x"<<T<<" finished in "<<time_cost[2]/nt<<"us in average"<<std::endl;
-		std::cerr<<"Inv(faster) x"<<T<<" finished in "<<time_cost[3]/nt<<"us in average"<<std::endl;
-		std::cerr<<"Ln          x"<<T<<" finished in "<<time_cost[4]/nt<<"us in average"<<std::endl;
-		std::cerr<<"Ln(faster)  x"<<T<<" finished in "<<time_cost[5]/nt<<"us in average"<<std::endl;
-		std::cerr<<"Exp         x"<<T<<" finished in "<<time_cost[6]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Dif                           x"<<T<<" finished in "<<time_cost[0]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Dit                           x"<<T<<" finished in "<<time_cost[1]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Inv                           x"<<T<<" finished in "<<time_cost[2]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Inv(faster)                   x"<<T<<" finished in "<<time_cost[3]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Ln                            x"<<T<<" finished in "<<time_cost[4]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Ln(faster)                    x"<<T<<" finished in "<<time_cost[5]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Exp                           x"<<T<<" finished in "<<time_cost[6]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Multipoint eval interpolation x"<<T<<" finished in "<<time_cost[7]/nt<<"us in average"<<std::endl;
+		std::cerr<<"Lagrange interpolation        x"<<T<<" finished in "<<time_cost[8]/nt<<"us in average"<<std::endl;
 		std::cerr<<"End multiple thread NTT test"<<std::endl;
 	}
 	#endif

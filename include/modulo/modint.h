@@ -65,6 +65,16 @@ namespace math
 				friend std::istream& operator>>(std::istream &in, montgomery_mi &m_int){ui inp;in>>inp;m_int.init(inp);return in;}
 				friend std::ostream& operator<<(std::ostream &out, const montgomery_mi &m_int){out<<m_int.real_val();return out;}
 			};
+			static __attribute__((__always_inline__)) inline montgomery_mi ui2mi(ui k){
+				union ui2mi_impl
+				{
+					ui uval;
+					montgomery_mi mval;
+					ui2mi_impl(){}
+				}T;
+				T.uval=k;
+				return T.mval;
+			}
 			struct montgomery_mli_lib{
 				constexpr static ull calc_k(ull MOD,ui len){ull ans=1;for(ui i=1;i<len;++i) ans=(ans*(MOD+1)+1);return ans;}
 				ull P,P2,NP,Pk;static constexpr ui ull_len = sizeof(ull)*8;
@@ -93,6 +103,16 @@ namespace math
 				friend std::istream& operator>>(std::istream &in, montgomery_mli &m_int){ull inp;in>>inp;m_int.init(inp);return in;}
 				friend std::ostream& operator<<(std::ostream &out, const montgomery_mli &m_int){out<<m_int.real_val();return out;}
 			};
+			static __attribute__((__always_inline__)) inline montgomery_mli ull2mli(ull k){
+				union ull2mli_impl
+				{
+					ull uval;
+					montgomery_mli mval;
+					ull2mli_impl(){}
+				}T;
+				T.uval=k;
+				return T.mval;
+			}
 			typedef montgomery_mi mi;
 			typedef montgomery_mli mli;
 			typedef montgomery_mi_lib lmi;
@@ -212,6 +232,8 @@ namespace math
 	using modulo::modint::global_mod_mli;
 	using modulo::modint::default_mod;
 	using modulo::modint::lmi;
+	using modulo::modint::ui2mi;
+	using modulo::modint::ull2mli;
 	#if defined(__AVX__) && defined(__AVX2__)
 	using modulo::modint::mai;
 	using modulo::modint::global_mod_mai;

@@ -919,7 +919,7 @@ namespace math
 		std::memcpy(&ret[0],tt[1].get(),sizeof(ui)*la);
 		return ret;
 	}
-	std::array<long long,7> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
+	std::array<long long,9> power_series_ring::polynomial_kernel::polynomial_kernel_ntt::test(ui T){
 		std::mt19937 rnd(default_mod);std::uniform_int_distribution<ui> rng{0,default_mod-1};
 		ui len=(fn>>2);
 		for(ui i=0;i<len;++i) tt[0][i]=tt[tmp_size-1][i]=li.v(rng(rnd));
@@ -949,18 +949,33 @@ namespace math
 		for(ui i=0;i<T;++i) tt[i&1][0]=li.v(0),internal_exp(tt[i&1].get(),tt[i&1^1].get(),tt[2].get(),tt[3].get(),tt[4].get(),tt[5].get(),tt[6].get(),tt[7].get(),len);
 		auto exp_end=std::chrono::system_clock::now();
 		for(ui i=0;i<len;++i) assert(li.reds(tt[0][i])==li.reds(tt[tmp_size-1][i]));
+		poly src1(len),src2(len),dst;
+		std::uniform_int_distribution<ui> stp{1,100};
+		for(ui i=0,cur=0;i<len;++i) cur+=stp(rnd),src1[i]=ui2mi(tt[0][i]),src2[i]=li.v(cur);
+		auto mei_start=std::chrono::system_clock::now();
+		for(ui i=0;i<T;++i) dst=multipoint_eval_interpolation(src1,src2);
+		auto mei_end=std::chrono::system_clock::now();
+		std::vector<std::pair<mi,mi>> src3(len);
+		for(ui i=0;i<len;++i) src3[i]=std::make_pair(src2[i],dst[i]);
+		auto li_start=std::chrono::system_clock::now();
+		for(ui i=0;i<T;++i) src1=lagrange_interpolation(src3);
+		for(ui i=0;i<len;++i) assert(li.reds(src1[i].get_val())==li.reds(tt[tmp_size-1][i]));
+		auto li_end=std::chrono::system_clock::now();
 		auto dif_duration=std::chrono::duration_cast<std::chrono::microseconds>(dif_end-dif_start),
 			 dit_duration=std::chrono::duration_cast<std::chrono::microseconds>(dit_end-dit_start),
 			 inv_duration=std::chrono::duration_cast<std::chrono::microseconds>(inv_end-inv_start),
 			 inv_faster_duration=std::chrono::duration_cast<std::chrono::microseconds>(inv_faster_end-inv_faster_start),
 			 ln_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_end-ln_start),
 			 ln_faster_duration =std::chrono::duration_cast<std::chrono::microseconds>(ln_faster_end-ln_faster_start),
-			 exp_duration=std::chrono::duration_cast<std::chrono::microseconds>(exp_end-exp_start);
-		return {dif_duration.count(),dit_duration.count(),inv_duration.count(),inv_faster_duration.count(),ln_duration.count(),ln_faster_duration.count(),exp_duration.count()};
+			 exp_duration=std::chrono::duration_cast<std::chrono::microseconds>(exp_end-exp_start),
+			 mei_duration=std::chrono::duration_cast<std::chrono::microseconds>(mei_end-mei_start),
+			 li_duration=std::chrono::duration_cast<std::chrono::microseconds>(li_end-li_start);
+		return {dif_duration.count(),dit_duration.count(),inv_duration.count(),inv_faster_duration.count(),ln_duration.count(),ln_faster_duration.count(),exp_duration.count(),
+				mei_duration.count(),li_duration.count()};
 	}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_multipoint_eval_interpolation_calc_Q(std::vector<poly> &Q_storage,const poly &input_coef,ui l,ui r,ui id){
 		if(l==r){
-			Q_storage[id]={1,-input_coef[l]};
+			Q_storage[id]={ui2mi(li.v(1)),ui2mi(li.neg(input_coef[l].get_val()))};
 			return;
 		}
 		ui mid=(l+r)>>1;
@@ -974,7 +989,7 @@ namespace math
 			result_coef[l]=P_stack[dep][0];
 			return;
 		}
-		if(P_stack[dep].size()>(r-l+1)) P_stack[dep].resize(r-l+1);
+		P_stack[dep].resize(r-l+1);
 		ui mid=(l+r)>>1;
 		P_stack[dep+1]=transpose_mul(P_stack[dep],Q_storage[id<<1|1]);
 		internal_multipoint_eval_interpolation_calc_P(Q_storage,P_stack,result_coef,l,mid,id<<1,dep+1);
@@ -984,7 +999,7 @@ namespace math
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::multipoint_eval_interpolation(const poly &a,const poly &b){
 		ui point_count=b.size(),poly_count=a.size(),maxnm=std::max(point_count,poly_count);
 		if(!poly_count) throw std::runtime_error("Multipoint eval interpolation of empty polynomial!");
-		if(maxnm>mx) throw std::runtime_error("Multipoint eval interpolation size out of range!");
+		if(maxnm*4>fn) throw std::runtime_error("Multipoint eval interpolation size out of range!");
 		if(!point_count) return {};
 		std::vector<poly> Q_storage(point_count<<2),P_stack((32-__builtin_clz(point_count))*2);
 		internal_multipoint_eval_interpolation_calc_Q(Q_storage,b,0,point_count-1,1);
@@ -993,5 +1008,87 @@ namespace math
 		P_stack[0]=transpose_mul(a,inv(Q_storage[1]));
 		internal_multipoint_eval_interpolation_calc_P(Q_storage,P_stack,ans,0,point_count-1,1,0);
 		return ans;
+	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_lagrange_interpolation_dvc_mul(ui l,ui r,const poly &a,ui id,
+																											  std::vector<std::pair<poly,poly>> &R_storage){
+		if(l==r){
+			R_storage[id].first={ui2mi(li.neg(a[l].get_val())),ui2mi(li.v(1))};
+			return;
+		}
+		ui mid=(l+r)>>1;
+		internal_lagrange_interpolation_dvc_mul(l,mid,a,id<<1,R_storage);
+		internal_lagrange_interpolation_dvc_mul(mid+1,r,a,id<<1|1,R_storage);
+		ui m=32-__builtin_clz(r-l+1);
+		R_storage[id].first=mul(R_storage[id<<1].first,R_storage[id<<1|1].first);
+		R_storage[id<<1].second.resize((1<<m));
+		R_storage[id<<1|1].second.resize((1<<m));
+		std::memcpy(&R_storage[id<<1].second[0],tt[0].get(),sizeof(mi)*(1<<m));
+		std::memcpy(&R_storage[id<<1|1].second[0],tt[1].get(),sizeof(mi)*(1<<m));
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::derivative(const poly &a){
+		if(!a.size()) throw std::runtime_error("Derivative calculation of empty polynomial!");
+		ui len=a.size();poly ret(len-1);
+		for(ui i=0;i<len-1;++i) ret[i]=ui2mi(li.mul(li.v(i+1),a[i+1].get_val()));
+		return ret;
+	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_lagrange_interpolation_calc_P(const std::vector<std::pair<poly,poly>> &R_storage,std::vector<poly> &P_stack,
+																											 poly &result_coef,ui l,ui r,ui id,ui dep){
+		if(l==r){
+			result_coef[l]=P_stack[dep][0];
+			return;
+		}
+		P_stack[dep].resize(r-l+1);
+		ui mid=(l+r)>>1;
+		P_stack[dep+1]=transpose_mul(P_stack[dep],rev(R_storage[id<<1|1].first));
+		internal_lagrange_interpolation_calc_P(R_storage,P_stack,result_coef,l,mid,id<<1,dep+1);
+		P_stack[dep+1]=transpose_mul(P_stack[dep],rev(R_storage[id<<1].first));
+		internal_lagrange_interpolation_calc_P(R_storage,P_stack,result_coef,mid+1,r,id<<1|1,dep+1);
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_lagrange_interpolation_dvc_mul_ans(ui l,ui r,const poly &a,
+																															ui id,const std::vector<std::pair<poly,poly>> &R_storage){
+		if(l==r) return {a[l]};
+		ui mid=(l+r)>>1;
+		auto&& lp=internal_lagrange_interpolation_dvc_mul_ans(l,mid,a,id<<1,R_storage);
+		auto&& rp=internal_lagrange_interpolation_dvc_mul_ans(mid+1,r,a,id<<1|1,R_storage);
+		ui m=32-__builtin_clz(r-l+1);
+		std::memcpy(tt[0].get(),&lp[0],sizeof(mi)*(lp.size()));std::memset(tt[0].get()+lp.size(),0,sizeof(mi)*((1<<m)-lp.size()));
+		std::memcpy(tt[1].get(),&rp[0],sizeof(mi)*(rp.size()));std::memset(tt[1].get()+rp.size(),0,sizeof(mi)*((1<<m)-rp.size()));
+		dif(tt[0].get(),m);dif(tt[1].get(),m);
+		for(ui i=0;i<(1<<m);++i) tt[0][i]=li.add(li.mul(tt[0][i],R_storage[id<<1|1].second[i].get_val()),li.mul(tt[1][i],R_storage[id<<1].second[i].get_val()));
+		dit(tt[0].get(),m);
+		poly ret(r-l+1);
+		std::memcpy(&ret[0],tt[0].get(),sizeof(mi)*(r-l+1));
+		return ret;
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::rev(const poly &a){
+		poly ret(a);
+		std::reverse(ret.begin(),ret.end());
+		return ret;
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::lagrange_interpolation(const std::vector<std::pair<mi,mi>> &a){
+		if(!a.size()) throw std::runtime_error("Lagrange interpolation of zero coefficients!");
+		auto d=a;
+		auto cmp=[](const std::pair<mi,mi> &a,const std::pair<mi,mi> &b){
+			return a.first.get_val()<b.first.get_val() || (a.first.get_val()==b.first.get_val() && a.second.get_val()<b.second.get_val());};
+		auto ceq=[](const std::pair<mi,mi> &a,const std::pair<mi,mi> &b){return a.first.get_val()==b.first.get_val() && a.second.get_val()==b.second.get_val();};
+		std::sort(d.begin(),d.end(),cmp);
+		d.resize(std::unique(d.begin(),d.end(),ceq)-d.begin());
+		ui len=d.size();
+		if(len*4>fn) throw std::runtime_error("Lagrange interpolation size out of range!");
+		for(ui i=1;i<len;++i) if(d[i].first.get_val()==d[i-1].first.get_val()) throw std::runtime_error("Polynomial has multiple values on one position!");
+		if(len==1) return {d[0].second};
+		poly pts(len);
+		for(ui i=0;i<len;++i) pts[i]=d[i].first;
+		std::vector<std::pair<poly,poly>> R_storage(len<<2);
+		std::vector<poly> P_stack((32-__builtin_clz(len))*2);
+		internal_lagrange_interpolation_dvc_mul(0,len-1,pts,1,R_storage);
+		poly rf=rev(R_storage[1].first);rf.resize(len);
+		P_stack[0]=transpose_mul(derivative(R_storage[1].first),inv(rf));
+		poly coef(len);
+		internal_lagrange_interpolation_calc_P(R_storage,P_stack,coef,0,len-1,1,0);
+		for(ui i=0;i<len;++i) coef[i]=ui2mi(li.mul(_fastpow(coef[i].get_val(),P-2),d[i].second.get_val()));
+		poly ret=internal_lagrange_interpolation_dvc_mul_ans(0,len-1,coef,1,R_storage);
+		ret.resize(a.size());
+		return ret;
 	}
 }
