@@ -18,12 +18,13 @@ private:
 	std::uint32_t P;
 	math::lmi li;
 public:
-	ntt_kernel()=default;
+	ntt_kernel();
 	ntt_kernel(std::uint32_t max_conv_size,std::uint32_t P0,std::uint32_t G);
 	void init(std::uint32_t max_conv_size,std::uint32_t P0,std::uint32_t G);
 	std::vector<long long> test(std::uint32_t T);
 	std::uint32_t get_P();
-	std::vector<std::uint32_t> mul(std::vector<std::uint32_t> ntt_kernel_poly_input1,std::vector<std::uint32_t> ntt_kernel_poly_input2);
+	math::lmi get_li();
+	std::vector<math::mi> mul(std::vector<math::mi> ntt_kernel_poly_input1,std::vector<math::mi> ntt_kernel_poly_input2);
 	~ntt_kernel();
 };
 

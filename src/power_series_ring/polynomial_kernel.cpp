@@ -11,6 +11,8 @@
 #include <cassert>
 #include <algorithm>
 #include <type/basic_typedef.h>
+#include <factorization/factorization.h>
+#include <basic/basic.h>
 
 #define NTT_partition_size 10
 
@@ -24,6 +26,14 @@ namespace math
 	}
 	ui power_series_ring::polynomial_kernel::polynomial_kernel_ntt::_fastpow(ui a,ui b){ui ans=li.v(1),off=a;while(b){if(b&1) ans=li.mul(ans,off);off=li.mul(off,off);b>>=1;}return ans;}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::init(ui max_conv_size,ui P0,ui G0){
+		if(P0>=(1u<<30) && !P0) throw std::runtime_error("invalid prime!");
+		if(G0>=P0 || (!G0)) throw std::runtime_error("invalid primitive root!");
+		{
+			if(!factorization::miller_rabin_u32(P0)) throw std::runtime_error("invalid prime!");
+			auto fact=factorization::pollard_rho_factorize_u32(P0-1);
+			for(auto &&v:fact) if(basic::fast_pow(G0,(P0-1)/v.first,P0)==1) throw std::runtime_error("invalid primitive root!");
+		}
+		if(max_conv_size>=(1u<<30)) throw std::runtime_error("invalid range!");
 		max_conv_size=std::max(max_conv_size,16u);
 		li=lmi(P0);
 		#if defined(__AVX__) && defined(__AVX2__)
@@ -34,6 +44,7 @@ namespace math
 		#endif
 		release();P=P0,G=G0;mx=max_conv_size;
 		fn=1;fb=0;while(fn<(max_conv_size<<1)) fn<<=1,++fb;
+		if((P0-1)%fn) throw std::runtime_error("invalid range!");
 		_inv=create_aligned_array<ui,64>(fn+32);ws0 =create_aligned_array<ui,64>(fn+32);
 		ws1 =create_aligned_array<ui,64>(fn+32);num =create_aligned_array<ui,64>(fn+32);
 		for(ui i=0;i<tmp_size;++i)	tt[i] =create_aligned_array<ui,64>(fn+32);
