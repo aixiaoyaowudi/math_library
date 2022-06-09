@@ -1038,8 +1038,28 @@ namespace math
 	}
 	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::derivative(const poly &a){
 		if(!a.size()) throw std::runtime_error("Derivative calculation of empty polynomial!");
+		if(a.size()>fn) throw std::runtime_error("Derivative calculation size out of range!");
 		ui len=a.size();poly ret(len-1);
 		for(ui i=0;i<len-1;++i) ret[i]=ui2mi(li.mul(li.v(i+1),a[i+1].get_val()));
+		return ret;
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::integrate(const poly &a){
+		if(!a.size()) throw std::runtime_error("Integrate calculation of empty polynomial!");
+		if(a.size()>=fn) throw std::runtime_error("Integrate calculation size out of range!");
+		ui len=a.size();poly ret(len+1);ret[0]=ui2mi(li.v(0));
+		for(ui i=1;i<=len;++i) ret[i]=ui2mi(li.mul(_inv[i-1],a[i-1].get_val()));
+		return ret;
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::add(const poly &a,const poly &b){
+		ui la=a.size(),lb=b.size(),len=std::max(la,lb);poly ret(len);
+		std::memcpy(&ret[0],&b[0],sizeof(mi)*(lb));
+		for(ui i=0;i<la;++i) ret[i]=ui2mi(li.add(ret[i].get_val(),a[i].get_val()));
+		return ret;
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_ntt::sub(const poly &a,const poly &b){
+		ui la=a.size(),lb=b.size(),len=std::max(la,lb);poly ret(len);
+		std::memcpy(&ret[0],&a[0],sizeof(mi)*(la));
+		for(ui i=0;i<lb;++i) ret[i]=ui2mi(li.sub(ret[i].get_val(),b[i].get_val()));
 		return ret;
 	}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::internal_lagrange_interpolation_calc_P(const std::vector<std::pair<poly,poly>> &R_storage,std::vector<poly> &P_stack,
@@ -1087,7 +1107,11 @@ namespace math
 		ui len=d.size();
 		if(len*4>fn) throw std::runtime_error("Lagrange interpolation size out of range!");
 		for(ui i=1;i<len;++i) if(d[i].first.get_val()==d[i-1].first.get_val()) throw std::runtime_error("Polynomial has multiple values on one position!");
-		if(len==1) return {d[0].second};
+		if(len==1){
+			poly ret=poly({d[0].second});
+			ret.resize(a.size());
+			return ret;
+		}
 		poly pts(len);
 		for(ui i=0;i<len;++i) pts[i]=d[i].first;
 		std::vector<std::pair<poly,poly>> R_storage(len<<2);

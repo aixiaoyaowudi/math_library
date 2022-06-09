@@ -68,6 +68,9 @@ namespace math
 				poly ln(const poly &src);
 				poly exp(const poly &src);
 				poly derivative(const poly &src);
+				poly integrate(const poly &src);
+				poly add(const poly &src1,const poly &src2);
+				poly sub(const poly &src1,const poly &src2);
 				std::array<long long,9> test(ui T);
 			};
 		}
