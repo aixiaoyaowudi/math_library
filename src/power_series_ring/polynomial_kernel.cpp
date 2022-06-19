@@ -26,7 +26,7 @@ namespace math
 	}
 	ui power_series_ring::polynomial_kernel::polynomial_kernel_ntt::_fastpow(ui a,ui b){ui ans=li.v(1),off=a;while(b){if(b&1) ans=li.mul(ans,off);off=li.mul(off,off);b>>=1;}return ans;}
 	void power_series_ring::polynomial_kernel::polynomial_kernel_ntt::init(ui max_conv_size,ui P0,ui G0){
-		if(P0>=(1u<<30) && !P0) throw std::runtime_error("invalid prime!");
+		if(P0>=(1u<<30) || !P0) throw std::runtime_error("invalid prime!");
 		if(G0>=P0 || (!G0)) throw std::runtime_error("invalid primitive root!");
 		{
 			if(!factorization::miller_rabin_u32(P0)) throw std::runtime_error("invalid prime!");
@@ -1124,6 +1124,80 @@ namespace math
 		for(ui i=0;i<len;++i) coef[i]=ui2mi(li.mul(_fastpow(coef[i].get_val(),P-2),d[i].second.get_val()));
 		poly ret=internal_lagrange_interpolation_dvc_mul_ans(0,len-1,coef,1,R_storage);
 		ret.resize(a.size());
+		return ret;
+	}
+	power_series_ring::polynomial_kernel::polynomial_kernel_mtt::polynomial_kernel_mtt():F1(P1),F2(P2),F3(P3),li1(P1),li2(P2),li3(P3){
+		P=fn=0;
+	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_mtt::release(){
+		k1.release();k2.release();k3.release();P=fn=0;
+		_inv.reset();
+	}
+	void power_series_ring::polynomial_kernel::polynomial_kernel_mtt::init(ui max_conv_size,ui P0){
+		if(P0>=(1u<<30) || !P0) throw std::runtime_error("invalid prime!");
+		if(!factorization::miller_rabin_u32(P0)) throw std::runtime_error("invalid prime!");
+		try{
+			release();
+			k1.init(max_conv_size,P1,G1);
+			k2.init(max_conv_size,P2,G2);
+			k3.init(max_conv_size,P3,G3);
+			P=P0;fn=k1.fn;li=lmi(P);
+			F=fast_mod_32(P);
+			if(P<=fn+32) throw std::runtime_error("invalid prime!");
+			_inv=create_aligned_array<ui,64>(fn+32);
+			_inv[0]=li.v(1);for(ui i=2;i<=fn+32;++i) _inv[i-1]=li.mul(li.v(P-P/i),_inv[(P%i)-1]);
+		}catch(std::exception &e){
+			P=0;
+			throw std::runtime_error(e.what());
+		}
+	}
+	power_series_ring::polynomial_kernel::polynomial_kernel_mtt::polynomial_kernel_mtt(ui max_conv_size,ui P0):F1(P1),F2(P2),F3(P3),li1(P1),li2(P2),li3(P3){
+		init(max_conv_size,P0);
+	}
+	power_series_ring::polynomial_kernel::polynomial_kernel_mtt::~polynomial_kernel_mtt(){release();}
+	power_series_ring::polynomial_kernel::polynomial_kernel_mtt::polynomial_kernel_mtt(const polynomial_kernel_mtt &d):
+	P(d.P),fn(d.fn),k1(d.k1),k2(d.k2),k3(d.k3),F1(P1),F2(P2),F3(P3),F(d.F),li(d.li),li1(P1),li2(P2),li3(P3){}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_mtt::add(const poly &a,const poly &b){
+		ui la=a.size(),lb=b.size(),len=std::max(la,lb);poly ret(len);
+		std::memcpy(&ret[0],&b[0],sizeof(mi)*(lb));
+		for(ui i=0;i<la;++i) ret[i]=ui2mi(li.add(ret[i].get_val(),a[i].get_val()));
+		return ret;
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_mtt::sub(const poly &a,const poly &b){
+		ui la=a.size(),lb=b.size(),len=std::max(la,lb);poly ret(len);
+		std::memcpy(&ret[0],&a[0],sizeof(mi)*(la));
+		for(ui i=0;i<lb;++i) ret[i]=ui2mi(li.sub(ret[i].get_val(),b[i].get_val()));
+		return ret;
+	}
+	power_series_ring::poly power_series_ring::polynomial_kernel::polynomial_kernel_mtt::mul(const power_series_ring::poly &a,const power_series_ring::poly &b){
+		ui la=a.size(),lb=b.size();if((!la) && (!lb)) return poly();
+		if((la+lb-1)>fn) throw std::runtime_error("Convolution size out of range!");
+		poly a1(a.size()),a2(a.size()),a3(a.size()),b1(b.size()),b2(b.size()),b3(b.size());
+		for(ui i=0;i<a.size();++i){
+			ui ra=li.rv(a[i].get_val());
+			a1[i]=ui2mi(li1.v(ra));
+			a2[i]=ui2mi(li2.v(ra));
+			a3[i]=ui2mi(li3.v(ra));
+		}
+		for(ui i=0;i<b.size();++i){
+			ui rb=li.rv(b[i].get_val());
+			b1[i]=ui2mi(li1.v(rb));
+			b2[i]=ui2mi(li2.v(rb));
+			b3[i]=ui2mi(li3.v(rb));
+		}
+		poly r1=k1.mul(a1,b1),r2=k2.mul(a2,b2),r3=k3.mul(a3,b3);
+		poly ret(la+lb-1);
+		ui I3=F.reduce(1ull*P1*P2);
+		for(int i=0;i<la+lb-1;++i){
+			ui x1=li1.rv(r1[i].get_val());
+			ui x2=li2.rv(r2[i].get_val());
+			ui x3=li3.rv(r3[i].get_val());
+			ui k1=F2.reduce(1ull*(x2-x1+P2)*I1);
+			ull x4=1ull*k1*P1+x1;
+			ui k2=F3.reduce((x3-F3.reduce(x4)+P3)*I2);
+			ui x=F.reduce(x4+1ull*k2*I3);
+			ret[i]=ui2mi(li.v(x));
+		}
 		return ret;
 	}
 }

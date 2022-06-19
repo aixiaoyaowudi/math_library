@@ -15,6 +15,7 @@
 #include <new>
 #endif
 #include <modulo/modint.h>
+#include <game/nimber.h>
 
 namespace math
 {
@@ -72,10 +73,13 @@ namespace math
 		template<> struct is_mod_int<m5i>:std::true_type{};
 		#endif
 		template<typename T> constexpr bool is_mod_int_v=is_mod_int<T>::value;
+		template<typename T> struct is_nimber_int:std::false_type{};
+		template<> struct is_nimber_int<ni>:std::true_type{};
+		template<typename T> constexpr bool is_nimber_int_v=is_nimber_int<T>::value;
 		template<typename T>
 		struct has_unit_value_helper
 		{
-			template<typename G> static auto test(int) -> typename std::enable_if<(std::is_arithmetic_v<G> || is_mod_int_v<G>),std::true_type>::type;
+			template<typename G> static auto test(int) -> typename std::enable_if<(std::is_arithmetic_v<G> || is_mod_int_v<G> || is_nimber_int_v<G>),std::true_type>::type;
 			template<typename G> static auto test(...) -> std::false_type;
 			using type=decltype(test<T>(0));
 		};
@@ -84,6 +88,8 @@ namespace math
 		template<typename T,typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
 		T unit_value(){return 1;}
 		template<typename T,typename std::enable_if<is_mod_int<T>::value>::type* = nullptr>
+		T unit_value(){return T(1);}
+		template<typename T,typename std::enable_if<is_nimber_int<T>::value>::type* = nullptr>
 		T unit_value(){return T(1);}
 		namespace integer_helper
 		{

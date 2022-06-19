@@ -19,7 +19,7 @@ namespace math
 		typedef std::vector<mi> poly;
 		namespace polynomial_kernel
 		{
-			class polynomial_kernel;
+			class polynomial_kernel_mtt;
 			class polynomial_kernel_ntt
 			{
 			private:
@@ -53,7 +53,7 @@ namespace math
 				lm5 l5;
 				#endif
 			public:
-				friend class polynomial_kernel;
+				friend class polynomial_kernel_mtt;
 				polynomial_kernel_ntt(ui max_conv_size,ui P0,ui G0);
 				void init(ui max_conv_size,ui P0,ui G0);
 				polynomial_kernel_ntt(const polynomial_kernel_ntt &d);
@@ -72,6 +72,24 @@ namespace math
 				poly add(const poly &src1,const poly &src2);
 				poly sub(const poly &src1,const poly &src2);
 				std::array<long long,9> test(ui T);
+			};
+			class polynomial_kernel_mtt
+			{
+			private:
+				static constexpr ui P1=167772161,G1=3,P2=469762049,G2=3,P3=754974721,G3=11,I1=104391568,I2=190329765;
+				polynomial_kernel_ntt k1,k2,k3;ui P,fn;lmi li,li1,li2,li3;
+				fast_mod_32 F,F1,F2,F3;
+				aligned_array<ui,64> _inv;
+				void release();
+			public:
+				void init(ui max_conv_size,ui P0);
+				polynomial_kernel_mtt(ui max_conv_size,ui P0);
+				polynomial_kernel_mtt(const polynomial_kernel_mtt &d);
+				polynomial_kernel_mtt();
+				~polynomial_kernel_mtt();
+				poly add(const poly &a,const poly &b);
+				poly sub(const poly &a,const poly &b);
+				poly mul(const poly &a,const poly &b);
 			};
 		}
 	}

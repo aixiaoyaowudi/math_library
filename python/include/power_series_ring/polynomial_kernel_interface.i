@@ -34,7 +34,9 @@
     }
 }
 
-%typemap(in) std::vector<math::mi> ntt_kernel_poly_input1,std::vector<math::mi> ntt_kernel_poly_input2,std::vector<math::mi> ntt_kernel_poly_input3,std::vector<math::mi> ntt_kernel_poly_input4
+%apply ntt_kernel *self{ mtt_kernel *self };
+
+%typemap(in) std::vector<math::mi> ntt_kernel_poly_input1,std::vector<math::mi> ntt_kernel_poly_input2,std::vector<math::mi> mtt_kernel_poly_input1,std::vector<math::mi> mtt_kernel_poly_input2
 {
     auto &&conv=convert_PyObject_List_to_mi_poly_with_modulo($input,li1,mod1);
     if(conv.second) return NULL;

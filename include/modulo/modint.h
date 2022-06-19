@@ -24,7 +24,7 @@ namespace math
 				ull b, m;
 				fast_mod_32(ull b) : b(b), m(ull((u128(1) << 64) / b)) {}
 				fast_mod_32(){}
-				fast_mod_32(fast_mod_32 &d):b(d.b),m(d.m){}
+				fast_mod_32(const fast_mod_32 &d):b(d.b),m(d.m){}
 				ull reduce(ull a) {
 					ull q = (ull)((u128(m) * a) >> 64);
 					ull r = a - q * b;
@@ -244,6 +244,7 @@ namespace math
 	using modulo::modint::m5i;
 	using modulo::modint::lm5;
 	#endif
+	using modulo::modint::fast_mod_32;
 }
 
 #endif

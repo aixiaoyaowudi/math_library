@@ -40,4 +40,22 @@ public:
 	~ntt_kernel();
 };
 
+class mtt_kernel
+{
+private:
+	math::power_series_ring::polynomial_kernel::polynomial_kernel_mtt ker;
+	std::uint32_t P;
+	math::lmi li;
+public:
+	mtt_kernel();
+	mtt_kernel(std::uint32_t max_conv_size,std::uint32_t P0);
+	void init(std::uint32_t max_conv_size,std::uint32_t P0);
+	std::uint32_t get_P();
+	SWIG_NOT_EXPORT(math::lmi get_li(););
+	std::vector<math::mi> mul(std::vector<math::mi> ntt_kernel_poly_input1,std::vector<math::mi> ntt_kernel_poly_input2);
+	std::vector<math::mi> add(std::vector<math::mi> ntt_kernel_poly_input1,std::vector<math::mi> ntt_kernel_poly_input2);
+	std::vector<math::mi> sub(std::vector<math::mi> ntt_kernel_poly_input1,std::vector<math::mi> ntt_kernel_poly_input2);
+	~mtt_kernel();
+};
+
 #endif
