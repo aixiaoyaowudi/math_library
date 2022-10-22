@@ -66,12 +66,12 @@ namespace math
 		template<typename T> struct is_mod_int:std::false_type{};
 		template<> struct is_mod_int<mi>:std::true_type{};
 		template<> struct is_mod_int<mli>:std::true_type{};
-		#if defined(__AVX__) && defined(__AVX2__)
-		template<> struct is_mod_int<mai>:std::true_type{};
-		#endif
-		#if defined(__AVX512F__) && defined(__AVX512DQ__)
-		template<> struct is_mod_int<m5i>:std::true_type{};
-		#endif
+		// #if defined(__AVX__) && defined(__AVX2__)
+		// template<> struct is_mod_int<mai>:std::true_type{};
+		// #endif
+		// #if defined(__AVX512F__) && defined(__AVX512DQ__)
+		// template<> struct is_mod_int<m5i>:std::true_type{};
+		// #endif
 		template<typename T> constexpr bool is_mod_int_v=is_mod_int<T>::value;
 		template<typename T> struct is_nimber_int:std::false_type{};
 		template<> struct is_nimber_int<ni>:std::true_type{};

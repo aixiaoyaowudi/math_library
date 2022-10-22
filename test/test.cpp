@@ -128,16 +128,16 @@ int main(){
 			{
 				assert(global_mod_mi==default_mod);
 				assert(global_mod_mli==default_mod);
-				#if defined(__AVX__) && defined(__AVX2__)
-				assert(global_mod_mai==default_mod);
-				set_mod_mai(omp_test_mod_mai);
-				assert(global_mod_mai==omp_test_mod_mai);
-				#endif
-				#if defined(__AVX512F__) && defined(__AVX512DQ__)
-				assert(global_mod_m5i==default_mod);
-				set_mod_m5i(omp_test_mod_m5i);
-				assert(global_mod_m5i==omp_test_mod_m5i);
-				#endif
+				// #if defined(__AVX__) && defined(__AVX2__)
+				// assert(global_mod_mai==default_mod);
+				// set_mod_mai(omp_test_mod_mai);
+				// assert(global_mod_mai==omp_test_mod_mai);
+				// #endif
+				// #if defined(__AVX512F__) && defined(__AVX512DQ__)
+				// assert(global_mod_m5i==default_mod);
+				// set_mod_m5i(omp_test_mod_m5i);
+				// assert(global_mod_m5i==omp_test_mod_m5i);
+				// #endif
 				set_mod_mi(omp_test_mod_mi);
 				assert(global_mod_mi==omp_test_mod_mi);
 				set_mod_mli(omp_test_mod_mli);
@@ -145,32 +145,32 @@ int main(){
 			}
 			set_mod_for_all_threads_mi(omp_calc_mod_mi);
 			set_mod_for_all_threads_mli(omp_calc_mod_mli);
-			#if defined(__AVX__) && defined(__AVX2__)
-			set_mod_for_all_threads_mai(omp_calc_mod_mai);
-			#endif
-			#if defined(__AVX512F__) && defined(__AVX512DQ__)
-			set_mod_for_all_threads_m5i(omp_calc_mod_m5i);
-			#endif
+			// #if defined(__AVX__) && defined(__AVX2__)
+			// set_mod_for_all_threads_mai(omp_calc_mod_mai);
+			// #endif
+			// #if defined(__AVX512F__) && defined(__AVX512DQ__)
+			// set_mod_for_all_threads_m5i(omp_calc_mod_m5i);
+			// #endif
 			#if defined(_OPENMP)
 			#pragma omp parallel
 			#endif
 			{
-				std::mt19937	mi_rng (std::chrono::high_resolution_clock::now().time_since_epoch().count()),
+				std::mt19937	mi_rng (std::chrono::high_resolution_clock::now().time_since_epoch().count())/*,
 								mai_rng(std::chrono::high_resolution_clock::now().time_since_epoch().count()),
-								m5i_rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+								m5i_rng(std::chrono::high_resolution_clock::now().time_since_epoch().count())*/;
 				std::mt19937_64 mli_rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-				std::uniform_int_distribution<ui> mi_uid{0,omp_calc_mod_mi-1},
+				std::uniform_int_distribution<ui> mi_uid{0,omp_calc_mod_mi-1}/*,
 												  mai_uid{0,omp_calc_mod_mai-1},
-												  m5i_uid{0,omp_calc_mod_m5i-1};
+												  m5i_uid{0,omp_calc_mod_m5i-1}*/;
 				std::uniform_int_distribution<ull> mli_uid{0,omp_calc_mod_mli-1};
 				assert(global_mod_mi==omp_calc_mod_mi);
 				assert(global_mod_mli==omp_calc_mod_mli);
-				#if defined(__AVX__) && defined(__AVX2__)
-				assert(global_mod_mai==omp_calc_mod_mai);
-				#endif
-				#if defined(__AVX512F__) && defined(__AVX512DQ__)
-				assert(global_mod_m5i==omp_calc_mod_m5i);
-				#endif
+				// #if defined(__AVX__) && defined(__AVX2__)
+				// assert(global_mod_mai==omp_calc_mod_mai);
+				// #endif
+				// #if defined(__AVX512F__) && defined(__AVX512DQ__)
+				// assert(global_mod_m5i==omp_calc_mod_m5i);
+				// #endif
 				for(ui i=0;i<test_num;++i){
 					{
 						ui opa=mi_uid(mi_rng),opb=mi_uid(mi_rng);
@@ -214,80 +214,80 @@ int main(){
 						mpc*=mpb;
 						assert(v3==mpc.real_val());
 					}
-					#if defined(__AVX__) && defined(__AVX2__)
-					{
-						auto c=[](__m256i a,__m256i b)->int{
-							__m256i x=_mm256_xor_si256(a,b);
-							return _mm256_testz_si256(x,x);
-						};
-						ui opal[8],opbl[8],v1l[8],v2l[8],v3l[8],v4l[8];
-						for(ui j=0;j<8;++j){
-							opal[j]=mai_uid(mai_rng);
-							opbl[j]=mai_uid(mai_rng);
-							v1l[j]=((opal[j]+opbl[j])%omp_calc_mod_mai),
-							v2l[j]=((opal[j]-opbl[j]+omp_calc_mod_mai)%omp_calc_mod_mai),
-							v3l[j]=(1ull*opal[j]*opbl[j]%omp_calc_mod_mai),
-							v4l[j]=(omp_calc_mod_mai-opal[j])%omp_calc_mod_mai;
-						}
-						__m256i opa=_mm256_loadu_si256((__m256i*)opal),
-						        opb=_mm256_loadu_si256((__m256i*)opbl),
-						        v1 =_mm256_loadu_si256((__m256i*)v1l),
-						        v2 =_mm256_loadu_si256((__m256i*)v2l),
-						        v3 =_mm256_loadu_si256((__m256i*)v3l),
-						        v4 =_mm256_loadu_si256((__m256i*)v4l);
-						mai mpa(opa),mpb(opb);
-						assert(c(v1,(mpa+mpb).real_val()));
-						assert(c(v2,(mpa-mpb).real_val()));
-						assert(c(v3,(mpa*mpb).real_val()));
-						assert(c(v4,(-mpa).real_val()));
-						mai mpc=mpa;
-						mpc+=mpb;
-						assert(c(v1,mpc.real_val()));
-						mpc=mpa;
-						mpc-=mpb;
-						assert(c(v2,mpc.real_val()));
-						mpc=mpa;
-						mpc*=mpb;
-						assert(c(v3,mpc.real_val()));
-					}
-					#endif
-					#if defined(__AVX512F__) && defined(__AVX512DQ__)
-					{
-						auto c=[](__m512i a,__m512i b)->int{
-							__m512i x=_mm512_xor_si512(a,b);
-							return (_mm512_test_epi32_mask(x,x)==0)?1:0;
-						};
-						ui opal[16],opbl[16],v1l[16],v2l[16],v3l[16],v4l[16];
-						for(ui j=0;j<8;++j){
-							opal[j]=m5i_uid(mai_rng);
-							opbl[j]=m5i_uid(mai_rng);
-							v1l[j]=((opal[j]+opbl[j])%omp_calc_mod_m5i),
-							v2l[j]=((opal[j]-opbl[j]+omp_calc_mod_m5i)%omp_calc_mod_m5i),
-							v3l[j]=(1ull*opal[j]*opbl[j]%omp_calc_mod_m5i),
-							v4l[j]=(omp_calc_mod_m5i-opal[j])%omp_calc_mod_m5i;
-						}
-						__m512i opa=_mm512_loadu_si512((__m512i*)opal),
-						        opb=_mm512_loadu_si512((__m512i*)opbl),
-						        v1 =_mm512_loadu_si512((__m512i*)v1l),
-						        v2 =_mm512_loadu_si512((__m512i*)v2l),
-						        v3 =_mm512_loadu_si512((__m512i*)v3l),
-						        v4 =_mm512_loadu_si512((__m512i*)v4l);
-						m5i mpa(opa),mpb(opb);
-						assert(c(v1,(mpa+mpb).real_val()));
-						assert(c(v2,(mpa-mpb).real_val()));
-						assert(c(v3,(mpa*mpb).real_val()));
-						assert(c(v4,(-mpa).real_val()));
-						m5i mpc=mpa;
-						mpc+=mpb;
-						assert(c(v1,mpc.real_val()));
-						mpc=mpa;
-						mpc-=mpb;
-						assert(c(v2,mpc.real_val()));
-						mpc=mpa;
-						mpc*=mpb;
-						assert(c(v3,mpc.real_val()));
-					}
-					#endif
+					// #if defined(__AVX__) && defined(__AVX2__)
+					// {
+					// 	auto c=[](__m256i a,__m256i b)->int{
+					// 		__m256i x=_mm256_xor_si256(a,b);
+					// 		return _mm256_testz_si256(x,x);
+					// 	};
+					// 	ui opal[8],opbl[8],v1l[8],v2l[8],v3l[8],v4l[8];
+					// 	for(ui j=0;j<8;++j){
+					// 		opal[j]=mai_uid(mai_rng);
+					// 		opbl[j]=mai_uid(mai_rng);
+					// 		v1l[j]=((opal[j]+opbl[j])%omp_calc_mod_mai),
+					// 		v2l[j]=((opal[j]-opbl[j]+omp_calc_mod_mai)%omp_calc_mod_mai),
+					// 		v3l[j]=(1ull*opal[j]*opbl[j]%omp_calc_mod_mai),
+					// 		v4l[j]=(omp_calc_mod_mai-opal[j])%omp_calc_mod_mai;
+					// 	}
+					// 	__m256i opa=_mm256_loadu_si256((__m256i*)opal),
+					// 	        opb=_mm256_loadu_si256((__m256i*)opbl),
+					// 	        v1 =_mm256_loadu_si256((__m256i*)v1l),
+					// 	        v2 =_mm256_loadu_si256((__m256i*)v2l),
+					// 	        v3 =_mm256_loadu_si256((__m256i*)v3l),
+					// 	        v4 =_mm256_loadu_si256((__m256i*)v4l);
+					// 	mai mpa(opa),mpb(opb);
+					// 	assert(c(v1,(mpa+mpb).real_val()));
+					// 	assert(c(v2,(mpa-mpb).real_val()));
+					// 	assert(c(v3,(mpa*mpb).real_val()));
+					// 	assert(c(v4,(-mpa).real_val()));
+					// 	mai mpc=mpa;
+					// 	mpc+=mpb;
+					// 	assert(c(v1,mpc.real_val()));
+					// 	mpc=mpa;
+					// 	mpc-=mpb;
+					// 	assert(c(v2,mpc.real_val()));
+					// 	mpc=mpa;
+					// 	mpc*=mpb;
+					// 	assert(c(v3,mpc.real_val()));
+					// }
+					// #endif
+					// #if defined(__AVX512F__) && defined(__AVX512DQ__)
+					// {
+					// 	auto c=[](__m512i a,__m512i b)->int{
+					// 		__m512i x=_mm512_xor_si512(a,b);
+					// 		return (_mm512_test_epi32_mask(x,x)==0)?1:0;
+					// 	};
+					// 	ui opal[16],opbl[16],v1l[16],v2l[16],v3l[16],v4l[16];
+					// 	for(ui j=0;j<8;++j){
+					// 		opal[j]=m5i_uid(mai_rng);
+					// 		opbl[j]=m5i_uid(mai_rng);
+					// 		v1l[j]=((opal[j]+opbl[j])%omp_calc_mod_m5i),
+					// 		v2l[j]=((opal[j]-opbl[j]+omp_calc_mod_m5i)%omp_calc_mod_m5i),
+					// 		v3l[j]=(1ull*opal[j]*opbl[j]%omp_calc_mod_m5i),
+					// 		v4l[j]=(omp_calc_mod_m5i-opal[j])%omp_calc_mod_m5i;
+					// 	}
+					// 	__m512i opa=_mm512_loadu_si512((__m512i*)opal),
+					// 	        opb=_mm512_loadu_si512((__m512i*)opbl),
+					// 	        v1 =_mm512_loadu_si512((__m512i*)v1l),
+					// 	        v2 =_mm512_loadu_si512((__m512i*)v2l),
+					// 	        v3 =_mm512_loadu_si512((__m512i*)v3l),
+					// 	        v4 =_mm512_loadu_si512((__m512i*)v4l);
+					// 	m5i mpa(opa),mpb(opb);
+					// 	assert(c(v1,(mpa+mpb).real_val()));
+					// 	assert(c(v2,(mpa-mpb).real_val()));
+					// 	assert(c(v3,(mpa*mpb).real_val()));
+					// 	assert(c(v4,(-mpa).real_val()));
+					// 	m5i mpc=mpa;
+					// 	mpc+=mpb;
+					// 	assert(c(v1,mpc.real_val()));
+					// 	mpc=mpa;
+					// 	mpc-=mpb;
+					// 	assert(c(v2,mpc.real_val()));
+					// 	mpc=mpa;
+					// 	mpc*=mpb;
+					// 	assert(c(v3,mpc.real_val()));
+					// }
+					// #endif
 				}
 			}
 			#if defined(_OPENMP)
