@@ -10,15 +10,15 @@
 
 namespace math
 {
-	namespace binomial
-	{
-		namespace fast_binomial_mod_2_32
-		{
-			ui factorial_odd(ui k);
-			ui factorial(ui k);
-			ui binomial(ui upper,ui lower);
-		}
-	}
+namespace binomial
+{
+namespace fast_binomial_mod_2_32
+{
+ui factorial_odd (ui k);
+ui factorial (ui k);
+ui binomial (ui upper, ui lower);
+}
+}
 }
 
 #endif

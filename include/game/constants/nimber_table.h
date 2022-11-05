@@ -8,11 +8,13 @@
 
 #include <cstdint>
 
-namespace math{
-	namespace game{
-		extern const std::uint16_t nimber_2_16_log_table[1<<16];
-		extern const std::uint16_t nimber_2_16_exp_table[1<<16];
-	}
+namespace math
+{
+namespace game
+{
+extern const std::uint16_t nimber_2_16_log_table[1 << 16];
+extern const std::uint16_t nimber_2_16_exp_table[1 << 16];
+}
 }
 
 #endif

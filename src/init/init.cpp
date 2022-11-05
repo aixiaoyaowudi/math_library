@@ -7,9 +7,11 @@
 
 namespace math
 {
-	namespace init
-	{
-		void math_library_init(){
-		}
-	}
+namespace init
+{
+void
+math_library_init ()
+{
+}
+}
 }

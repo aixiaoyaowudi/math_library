@@ -1,0 +1,10 @@
+---
+Language:        Cpp
+BasedOnStyle:  GNU
+AlignConsecutiveAssignments: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+IndentWidth:     2
+TabWidth:        2
+UseCRLF:         false
+UseTab:          false
+ReflowComments:  false

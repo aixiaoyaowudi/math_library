@@ -14,15 +14,15 @@
 #error "Only GNU compiler and Intel compiler is supported."
 #endif
 
-#include <type/basic_typedef.h>
-#include <tools/tools.h>
-#include <type/type.h>
-#include <modulo/modulo.h>
-#include <binomial/binomial.h>
 #include <basic/basic.h>
-#include <power_series_ring/power_series_ring.h>
+#include <binomial/binomial.h>
 #include <factorization/factorization.h>
-#include <init/init.h>
 #include <game/game.h>
+#include <init/init.h>
+#include <modulo/modulo.h>
+#include <power_series_ring/power_series_ring.h>
+#include <tools/tools.h>
+#include <type/basic_typedef.h>
+#include <type/type.h>
 
 #endif

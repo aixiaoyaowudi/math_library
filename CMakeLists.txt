@@ -14,8 +14,11 @@ cmake_policy(SET CMP0086 NEW)
 include(UseSWIG)
 
 file(GLOB_RECURSE LIB_DIR_LIST "${PROJECT_SOURCE_DIR}/src/*.cpp")
+list(FILTER LIB_DIR_LIST EXCLUDE REGEX ".*\.origin\.cpp")
 file(GLOB_RECURSE TEST_DIR_LIST "${PROJECT_SOURCE_DIR}/test/*.cpp")
+list(FILTER TEST_DIR_LIST EXCLUDE REGEX ".*\.origin\.cpp")
 file(GLOB_RECURSE PYTHON_DIR_LIST "${PROJECT_SOURCE_DIR}/python/src/*.cpp")
+list(FILTER PYTHON_DIR_LIST EXCLUDE REGEX ".*\.origin\.cpp")
 
 set(CMAKE_CXX_STANDARD 17)
 

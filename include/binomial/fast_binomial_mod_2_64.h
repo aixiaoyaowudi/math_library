@@ -10,15 +10,15 @@
 
 namespace math
 {
-	namespace binomial
-	{
-		namespace fast_binomial_mod_2_64
-		{
-			ull factorial_odd(ull k);
-			ull factorial(ull k);
-			ull binomial(ull upper,ull lower);
-		}
-	}
+namespace binomial
+{
+namespace fast_binomial_mod_2_64
+{
+ull factorial_odd (ull k);
+ull factorial (ull k);
+ull binomial (ull upper, ull lower);
+}
+}
 }
 
 #endif
