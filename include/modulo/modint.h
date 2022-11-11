@@ -467,7 +467,7 @@ struct montgomery_mm256_lib
   }
   montgomery_mm256_lib () {}
   INLINE_OP __m256i
-  redd (__m256i k)
+  redd (__m256i k) const
   {
     __m256i a = _mm256_sub_epi32 (k, P2);
     __m256i b = _mm256_and_si256 (
@@ -475,7 +475,7 @@ struct montgomery_mm256_lib
     return _mm256_add_epi32 (a, b);
   }
   INLINE_OP __m256i
-  reds (__m256i k)
+  reds (__m256i k) const
   {
     __m256i a = _mm256_sub_epi32 (k, P);
     __m256i b = _mm256_and_si256 (
@@ -483,14 +483,14 @@ struct montgomery_mm256_lib
     return _mm256_add_epi32 (a, b);
   }
   INLINE_OP __m256i
-  redu (__m256i k)
+  redu (__m256i k) const
   {
     return _mm256_srli_epi64 (
         _mm256_add_epi64 (_mm256_mul_epu32 (_mm256_mul_epu32 (k, Pk), P), k),
         32);
   }
   INLINE_OP __m256i
-  mul (__m256i k1, __m256i k2)
+  mul (__m256i k1, __m256i k2) const
   {
     return _mm256_or_si256 (
         redu (_mm256_mul_epu32 (k1, k2)),
@@ -500,12 +500,12 @@ struct montgomery_mm256_lib
             32));
   }
   INLINE_OP __m256i
-  add (__m256i k1, __m256i k2)
+  add (__m256i k1, __m256i k2) const
   {
     return redd (_mm256_add_epi32 (k1, k2));
   }
   INLINE_OP __m256i
-  sub (__m256i k1, __m256i k2)
+  sub (__m256i k1, __m256i k2) const
   {
     return redd (_mm256_add_epi32 (P2, _mm256_sub_epi32 (k1, k2)));
   }
@@ -526,26 +526,26 @@ struct montgomery_mm512_lib
   }
   montgomery_mm512_lib () {}
   INLINE_OP __m512i
-  redd (__m512i k)
+  redd (__m512i k) const
   {
     __m512i a = _mm512_sub_epi32 (k, P2);
     return _mm512_mask_add_epi32 (a, _mm512_movepi32_mask (a), a, P2);
   }
   INLINE_OP __m512i
-  reds (__m512i k)
+  reds (__m512i k) const
   {
     __m512i a = _mm512_sub_epi32 (k, P);
     return _mm512_mask_add_epi32 (a, _mm512_movepi32_mask (a), a, P);
   }
   INLINE_OP __m512i
-  redu (__m512i k)
+  redu (__m512i k) const
   {
     return _mm512_srli_epi64 (
         _mm512_add_epi64 (_mm512_mul_epu32 (_mm512_mul_epu32 (k, Pk), P), k),
         32);
   }
   INLINE_OP __m512i
-  mul (__m512i k1, __m512i k2)
+  mul (__m512i k1, __m512i k2) const
   {
     return _mm512_or_si512 (
         redu (_mm512_mul_epu32 (k1, k2)),
@@ -555,12 +555,12 @@ struct montgomery_mm512_lib
             32));
   }
   INLINE_OP __m512i
-  add (__m512i k1, __m512i k2)
+  add (__m512i k1, __m512i k2) const
   {
     return redd (_mm512_add_epi32 (k1, k2));
   }
   INLINE_OP __m512i
-  sub (__m512i k1, __m512i k2)
+  sub (__m512i k1, __m512i k2) const
   {
     return redd (_mm512_add_epi32 (P2, _mm512_sub_epi32 (k1, k2)));
   }

@@ -29,28 +29,24 @@ private:
   ui fn, fb, mx;
   void release ();
   ui _fastpow (ui a, ui b);
-  void dif (ui *restrict arr, ui n);
-  void dit (ui *restrict arr, ui n, bool last_layer = true);
-  void dif_xni (ui *restrict arr, ui n);
-  void dit_xni (ui *restrict arr, ui n);
-  void internal_mul (ui *restrict src1, ui *restrict src2, ui *restrict dst,
-                     ui m);
-  void internal_transpose_mul (ui *restrict src1, ui *restrict src2,
-                               ui *restrict dst, ui m);
-  void internal_inv (ui *restrict src, ui *restrict dst, ui *restrict tmp,
-                     ui *restrict tmp2, ui len);
-  void internal_inv_faster (ui *restrict src, ui *restrict dst,
-                            ui *restrict tmp, ui *restrict tmp2,
-                            ui *restrict tmp3, ui len);
-  void internal_ln (ui *restrict src, ui *restrict dst, ui *restrict tmp1,
-                    ui *restrict tmp2, ui *restrict tmp3, ui len);
-  void internal_ln_faster (ui *restrict src, ui *restrict dst,
-                           ui *restrict tmp, ui *restrict tmp2,
-                           ui *restrict tmp3, ui *restrict tmp4, ui len);
-  void internal_exp (ui *restrict src, ui *restrict dst, ui *restrict gn,
-                     ui *restrict gxni, ui *restrict h, ui *restrict tmp1,
-                     ui *restrict tmp2, ui *restrict tmp3, ui len,
-                     bool calc_h = false);
+  void dif (ui *arr, ui n);
+  void dit (ui *arr, ui n, bool last_layer = true);
+  void dif_xni (ui *arr, ui n);
+  void dit_xni (ui *arr, ui n);
+  void trick_mul (u32 _len, u32 *_pt1, u32 *_pt2, u32 *_pt3, u32 *_pt4,
+                  u32 *_pt5, u32 *_pt6);
+  void internal_mul (ui *src1, ui *src2, ui *dst, ui m);
+  void internal_transpose_mul (ui *src1, ui *src2, ui *dst, ui m);
+  void internal_div (u32 *f, u32 *h, u32 *dst, u32 *tmp1, u32 *tmp2, u32 *tmp3,
+                     u32 len);
+  void internal_inv (ui *src, ui *dst, ui *tmp, ui *tmp2, ui len);
+  void internal_inv_faster (ui *src, ui *dst, ui *tmp, ui *tmp2, ui *tmp3,
+                            ui len);
+  void internal_ln (ui *src, ui *dst, ui *tmp1, ui *tmp2, ui *tmp3, ui len);
+  void internal_ln_faster (ui *src, ui *dst, ui *tmp, ui *tmp2, ui *tmp3,
+                           ui *tmp4, ui len);
+  void internal_exp (ui *src, ui *dst, ui *gn, ui *gxni, ui *h, ui *tmp1,
+                     ui *tmp2, ui *tmp3, ui len, bool calc_h = false);
   void internal_multipoint_eval_interpolation_calc_Q (
       std::vector<poly> &Q_storage, const poly &input_coef, ui l, ui r, ui id);
   void internal_multipoint_eval_interpolation_calc_P (
@@ -78,6 +74,7 @@ public:
   polynomial_kernel_ntt (ui max_conv_size, ui P0, ui G0);
   void init (ui max_conv_size, ui P0, ui G0);
   polynomial_kernel_ntt (const polynomial_kernel_ntt &d);
+  polynomial_kernel_ntt (polynomial_kernel_ntt &&d);
   polynomial_kernel_ntt ();
   ~polynomial_kernel_ntt ();
   poly rev (const poly &a);
